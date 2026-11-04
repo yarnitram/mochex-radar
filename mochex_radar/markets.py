@@ -24,10 +24,10 @@ class CexMarket:
 CORE_BASES = ("SOL", "XRP", "DOGE", "LINK", "SUI", "AVAX", "ADA")
 
 
-def core_markets(venue: str = "unassigned") -> tuple[CexMarket, ...]:
-    """Configured markets only. Venue mapping is finalized with a data provider."""
+def core_markets(venue: str = "mexc-usdt-futures") -> tuple[CexMarket, ...]:
+    """Configured MEXC USDT futures contracts, pending listing verification."""
     markets = tuple(
-        CexMarket(venue=venue, market_id=f"{base}USDT", base=base, quote="USDT")
+        CexMarket(venue=venue, market_id=f"{base}_USDT", base=base, quote="USDT")
         for base in CORE_BASES
     )
     if len({market.asset_id for market in markets}) != len(markets):

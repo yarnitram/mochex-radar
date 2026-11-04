@@ -12,6 +12,7 @@ Create a read only FastAPI service with a deterministic registry for the seven c
 - `GET /api/v1/markets/core` returns seven configured CEX markets and a `data_status` of `configuration_only`.
 - Each market has `venue`, `market_id`, `base`, `quote`, and `asset_id`. The ID is derived from venue and market ID, not ticker alone.
 - `BTC` is absent from the trading universe. It will enter a later phase as market context.
+- Spec 002 assigns the initial venue and contract IDs to MEXC USDT futures; this supersedes the original `unassigned` placeholder.
 - Unsupported HTTP methods and nonexistent paths cannot place orders or mutate state.
 
 ## Invariants and failure behavior
