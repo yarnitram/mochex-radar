@@ -22,3 +22,7 @@ The initial release must not place trades, access exchange accounts, sign wallet
 - `docs/PRD.md`
 - `docs/Codex-Prompts.md`
 - Command Center vault: `C:\Users\Samjie\CommandCenter\02 - Projects\Active\Crypto-Radar`
+
+## Foundation development
+
+Use Python 3.11 or newer. In a virtual environment, install with `python -m pip install -e ".[test]"`, run `python -m pytest`, and start the API with `python -m uvicorn mochex_radar.api:app --reload`. `GET /api/v1/markets/core` reports configured markets only; it does not provide live prices. See `docs/specs/001-foundation-api.md` for the current feature contract.

@@ -9,3 +9,5 @@ node_modules/
 dist/
 coverage/
 *.log
+*.egg-info/
+.pytest_cache/

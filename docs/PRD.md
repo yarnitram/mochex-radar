@@ -206,7 +206,7 @@ Suggested runtime boundaries:
 
 Proxmox is the target self-hosted runtime after local validation. The deployment must remain portable and reproducible through Docker Compose or equivalent pinned service definitions.
 
-- Preferred initial layout: one dedicated unprivileged Proxmox VM for the application stack, with Docker/Compose inside the VM; keep the option to split workers later if load requires it.
+- Preferred initial layout: one dedicated Proxmox VM for the application stack, with Docker/Compose inside the VM and least privilege service users; keep the option to split workers later if load requires it.
 - Services inside the guest: dashboard, FastAPI, scanner workers, backtester on demand, PostgreSQL, Redis, and alert worker. Do not expose PostgreSQL or Redis directly to the LAN or Internet.
 - Use a reverse proxy or private network boundary for dashboard/API access, TLS where accessed beyond localhost, and explicit firewall rules.
 - Store persistent PostgreSQL data and approved application configuration on dedicated VM-backed storage. Redis remains rebuildable cache/queue state unless a specific durability need is documented.
