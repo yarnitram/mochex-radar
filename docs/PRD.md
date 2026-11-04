@@ -23,6 +23,7 @@ The existing separate Cluster Radar Solana project is a protected dependency. It
 - Store raw observations, normalized features, signals, risk findings, alerts, and outcomes for replay and backtesting.
 - Send explainable Telegram alerts with evidence, timestamps, freshness, confidence, and explicit risk disclaimers.
 - Support local Docker development and a provider-agnostic data layer.
+- Deploy the read-only platform on the user’s Proxmox environment using documented, reproducible guests and backups.
 
 ### Non-goals for the initial release
 
@@ -201,6 +202,21 @@ Suggested runtime boundaries:
 - Redis: short-lived market state, dedupe keys, queues/streams, worker heartbeats; never the sole source of truth.
 - Next.js: read-only presentation and user-configured filters.
 
+### Proxmox deployment target
+
+Proxmox is the target self-hosted runtime after local validation. The deployment must remain portable and reproducible through Docker Compose or equivalent pinned service definitions.
+
+- Preferred initial layout: one dedicated unprivileged Proxmox VM for the application stack, with Docker/Compose inside the VM; keep the option to split workers later if load requires it.
+- Services inside the guest: dashboard, FastAPI, scanner workers, backtester on demand, PostgreSQL, Redis, and alert worker. Do not expose PostgreSQL or Redis directly to the LAN or Internet.
+- Use a reverse proxy or private network boundary for dashboard/API access, TLS where accessed beyond localhost, and explicit firewall rules.
+- Store persistent PostgreSQL data and approved application configuration on dedicated VM-backed storage. Redis remains rebuildable cache/queue state unless a specific durability need is documented.
+- Define CPU, memory, disk, retention, and network requirements from measured workloads rather than guesses; start with conservative development sizing and record observed utilization.
+- Back up PostgreSQL, migrations/configuration, dashboards, and deployment definitions. Test restore before release. Do not back up secrets in plaintext.
+- Use Proxmox snapshots only as a convenience; they do not replace application-consistent database backups.
+- Keep secrets outside Git and inject them through protected guest storage or a secret manager. Never put exchange keys or private keys in the VM.
+- Add guest and service health checks, time synchronization, restart policies, disk-space alerts, provider-latency alerts, and a documented recovery procedure.
+- Initial release may be single-node and non-HA. High availability, GPU use, and Kubernetes are out of scope unless later justified by measured requirements.
+
 ## 7. Data-provider constraints
 
 - Providers must be selected and documented per capability; do not assume one provider supplies complete CEX, DEX, and Solana data.
@@ -244,7 +260,40 @@ Suggested runtime boundaries:
 - Reconciliation jobs for gaps, duplicate candles, and token identity conflicts.
 - Local Docker compose must start dependencies with documented seed/fixture data.
 
-## 11. Milestones and acceptance criteria
+## 11. Spec-Driven Development and testing
+
+Crypto Radar will use Spec-Driven Development (SDD). No implementation task is complete from a verbal description alone.
+
+### SDD workflow
+
+1. Write or update a small feature spec with scope, inputs, outputs, invariants, failure behavior, security impact, and acceptance criteria.
+2. Record the decision in the appropriate project/ADR document when architecture or provider behavior changes.
+3. Define contract/schema tests and representative fixtures before or alongside implementation.
+4. Implement the smallest change that satisfies the spec; preserve existing Cluster Radar behavior unless the spec explicitly approves a compatibility change.
+5. Run focused tests, then the broader regression suite, static checks, and security checks.
+6. Update documentation, test evidence, handoff, and known limitations before marking the feature complete.
+
+### Required test layers
+
+- **Unit:** indicators, feature calculations, scoring, thresholds, identity normalization, risk gates, dedupe, and alert formatting.
+- **Property/invariant:** timestamp ordering, non-negative volumes, bounded scores, deterministic replay, idempotency, and no signal from stale/blocked required inputs.
+- **Contract:** Pydantic/TypeScript schemas, provider adapters, Cluster Radar compatibility boundary, and Telegram client fake.
+- **Integration:** FastAPI with PostgreSQL/Redis, worker queues, migrations, provider fixtures, alert persistence, and dashboard API contracts.
+- **End-to-end:** ingestion fixture → features → signal → risk gate → API/dashboard → alert audit record.
+- **Backtest/replay:** point-in-time data availability, no look-ahead leakage, versioned rules, fees/spread/slippage/latency, and baseline comparisons.
+- **Resilience:** provider outage, rate limiting, stale data, duplicate/out-of-order events, malformed payloads, queue failure, database restart, disk-full behavior, and Telegram failure.
+- **Security:** secret scanning, dependency audit, input validation, authorization boundaries, safe logging, and confirmation that no trading/private-key path exists.
+- **Deployment:** clean-checkout startup, migration/rollback checks, Proxmox guest restart, backup/restore, health checks, resource limits, and private service networking.
+
+### Quality gates
+
+- A pull request cannot be accepted without its linked spec, test evidence, and risk/rollback notes.
+- CI must run formatting/linting, type checks, unit/property/contract/integration tests, security checks, and a smoke test.
+- Full end-to-end, backtest, resilience, and Proxmox checks may run in a scheduled or release pipeline when dependencies are available.
+- Coverage is a signal, not the only quality measure; critical risk and data-integrity paths require explicit tests even if coverage is already high.
+- A failed or skipped required test blocks release and must be explained in the handoff.
+
+## 12. Milestones and acceptance criteria
 
 ### M0 — Discovery and preservation
 
@@ -307,7 +356,18 @@ Acceptance:
 - Documentation covers setup, configuration, recovery, and known limitations.
 - User explicitly approves any scope expansion beyond read-only alerts.
 
-## 12. Open decisions for discovery
+### M7 — Proxmox deployment
+
+Acceptance:
+
+- A dedicated Proxmox guest runs the documented stack from a clean checkout using pinned configuration.
+- Dashboard/API access is protected by the documented network boundary; PostgreSQL and Redis are not publicly exposed.
+- Persistent data, backup, restore, restart, and disk-capacity procedures are documented and tested.
+- Secrets are injected without entering Git, image layers, logs, or backups in plaintext.
+- Proxmox guest/service health checks and failure recovery are demonstrated.
+- The deployment remains read-only: no exchange account access, wallet signing, or order-placement path exists.
+
+## 13. Open decisions for discovery
 
 - Which CEX is the initial reference venue for the seven pairs?
 - Which documented DEX/Solana providers are available and permitted?
@@ -316,6 +376,6 @@ Acceptance:
 - What are the user’s preferred timeframes, alert windows, and Telegram routing rules?
 - Are existing thresholds configurable in the old project or embedded in code?
 
-## 13. Definition of done for initial release
+## 14. Definition of done for initial release
 
 The initial release is done only when the platform is read-only, auditable, reproducible, provider-failure aware, and able to show explainable signals for the seven pairs plus separately labeled meme/AI/DEX/Cluster Radar evidence. It must preserve the existing Cluster Radar project and clearly distinguish research signals from financial advice or executable trading instructions.

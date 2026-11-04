@@ -145,7 +145,8 @@ Check:
 - stale provider behavior, queue failures, duplicate/out-of-order events, database restart, and Telegram failure;
 - dashboard disclosure of uncertainty and data freshness;
 - Cluster Radar preservation and unchanged test status;
-- deterministic local startup and documentation.
+- deterministic local startup and documentation;
+- Proxmox deployment readiness: dedicated unprivileged guest, pinned services, private database/cache networking, backups and restore test, secret injection, health checks, restart behavior, and disk-capacity monitoring.
 
 Run relevant tests and produce a gap report grouped by blocker, high, medium, and low. Fix only issues that are clearly in scope and safe; ask before expanding scope.
 ```
