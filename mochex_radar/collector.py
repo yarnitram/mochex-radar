@@ -10,7 +10,7 @@ from typing import Awaitable, Callable
 import httpx
 
 from mochex_radar.futures_feed import Candle, FeedUnavailable, INTERVALS, fetch_latest_closed
-from mochex_radar.markets import CexMarket, core_markets
+from mochex_radar.markets import CexMarket, btc_context_market, core_markets
 from mochex_radar.storage import CycleResult, initialize_database, store_cycle
 
 log = logging.getLogger(__name__)
@@ -26,6 +26,7 @@ async def collect_once(client: httpx.AsyncClient, persist: Persist,
     candles: list[Candle] = []
     failures = 0
     targets = [(market, interval) for market in core_markets() for interval in INTERVALS]
+    targets.append((btc_context_market(), "15m"))
     for index, (market, interval) in enumerate(targets):
         try:
             candles.append(await fetch(market, interval, client))

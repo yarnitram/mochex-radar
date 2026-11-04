@@ -2,14 +2,16 @@
 
 import asyncio
 import os
+from datetime import datetime, timezone
 import httpx
 import psycopg
 from fastapi import Depends, FastAPI, HTTPException
 
 from mochex_radar.futures_feed import INTERVALS, FeedUnavailable, fetch_latest_closed
+from mochex_radar.btc_context import classify
 
 from mochex_radar.markets import core_markets
-from mochex_radar.storage import latest_cycle
+from mochex_radar.storage import latest_cycle, recent_btc_candles
 
 app = FastAPI(title="Mochex Radar", version="0.1.0")
 
@@ -34,6 +36,18 @@ async def collector_status() -> dict[str, object]:
     except psycopg.Error as exc:
         raise HTTPException(status_code=503, detail="collector status unavailable") from exc
     return {"status": "completed" if cycle else "pending", "last_cycle": cycle}
+
+
+@app.get("/api/v1/market-context/btc")
+async def btc_context() -> dict[str, object]:
+    dsn = os.environ.get("DATABASE_URL")
+    if not dsn:
+        return classify([], datetime.now(timezone.utc))
+    try:
+        candles = await asyncio.to_thread(recent_btc_candles, dsn)
+    except psycopg.Error as exc:
+        raise HTTPException(status_code=503, detail="BTC context unavailable") from exc
+    return classify(candles, datetime.now(timezone.utc))
 
 
 @app.get("/api/v1/markets/core")

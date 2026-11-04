@@ -24,6 +24,11 @@ class CexMarket:
 CORE_BASES = ("SOL", "XRP", "DOGE", "LINK", "SUI", "AVAX", "ADA")
 
 
+def btc_context_market() -> CexMarket:
+    """BTC is observed only as broad market context."""
+    return CexMarket("mexc-usdt-futures", "BTC_USDT", "BTC", "USDT")
+
+
 def core_markets(venue: str = "mexc-usdt-futures") -> tuple[CexMarket, ...]:
     """Configured MEXC USDT futures contracts, pending listing verification."""
     markets = tuple(

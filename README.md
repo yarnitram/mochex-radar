@@ -32,3 +32,5 @@ MEXC USDT futures is the first public reference venue. `GET /api/v1/market-data/
 ## Scheduled collection (phase 3)
 
 Copy `.env.example` to `.env` and replace both placeholder values with the same strong password (URL encode special characters in `DATABASE_URL`). Run `docker compose up --build` to start PostgreSQL, the API, and a single collector. PostgreSQL stays inside the Compose network; the API binds to localhost port 8000. The collector visits seven contracts at 15m and 1h every 60 seconds and stores closed candles idempotently. `GET /api/v1/collector/status` shows the last completed cycle. Keep exactly one collector replica until distributed coordination is implemented. Backups and restore testing are required before Proxmox deployment. See `docs/specs/003-candle-collector.md`.
+
+The collector also observes `BTC_USDT` at 15m for context only. After four consecutive closed candles, `GET /api/v1/market-context/btc` returns a provisional BTC regime with its evidence; until then it returns `unknown`. Thresholds are screening hypotheses and do not trigger any trading action. See `docs/specs/004-btc-context.md`.

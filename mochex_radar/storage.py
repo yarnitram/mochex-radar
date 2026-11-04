@@ -85,3 +85,16 @@ def latest_cycle(dsn: str) -> dict[str, object] | None:
         return None
     return {"started_at": row[0].isoformat(), "finished_at": row[1].isoformat(),
             "stored_count": row[2], "provider_failures": row[3]}
+
+
+def recent_btc_candles(dsn: str) -> list[Candle]:
+    with psycopg.connect(dsn, connect_timeout=5) as conn:
+        rows = conn.execute(
+            """SELECT open_time, close_time, retrieved_at, open_price, high_price,
+                      low_price, close_price, volume, source
+               FROM market_candles
+               WHERE venue = %s AND market_id = %s AND interval = %s
+               ORDER BY open_time DESC LIMIT 4""",
+            ("mexc-usdt-futures", "BTC_USDT", "15m"),
+        ).fetchall()
+    return [Candle("cex:mexc-usdt-futures:BTC_USDT", "15m", *row) for row in reversed(rows)]

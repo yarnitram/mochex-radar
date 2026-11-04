@@ -14,6 +14,14 @@ def test_health_and_configured_universe() -> None:
     payload = response.json()
     assert payload["data_status"] == "configuration_only"
     assert len(payload["markets"]) == 7
+    assert "BTC_USDT" not in {item["market_id"] for item in payload["markets"]}
+
+
+def test_btc_context_without_database_is_unknown(monkeypatch) -> None:
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    response = client.get("/api/v1/market-context/btc")
+    assert response.status_code == 200
+    assert response.json()["state"] == "unknown"
 
 
 def test_no_mutating_market_route() -> None:

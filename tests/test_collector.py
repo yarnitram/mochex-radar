@@ -32,11 +32,12 @@ async def test_collects_all_targets_despite_one_provider_failure() -> None:
 
     async with httpx.AsyncClient() as client:
         result = await collect_once(client, save, fetch=fetch, pause=pause)
-    assert len(visited) == 14
-    assert len(set(visited)) == 14
-    assert len(pauses) == 13 and all(item == 0.15 for item in pauses)
-    assert len(stored) == 13
-    assert result.provider_failures == 1 and result.stored_count == 13
+    assert len(visited) == 15
+    assert len(set(visited)) == 15
+    assert ("BTC_USDT", "15m") in visited
+    assert len(pauses) == 14 and all(item == 0.15 for item in pauses)
+    assert len(stored) == 14
+    assert result.provider_failures == 1 and result.stored_count == 14
 
 
 @pytest.mark.asyncio

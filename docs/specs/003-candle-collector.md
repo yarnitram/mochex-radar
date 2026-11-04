@@ -8,7 +8,7 @@ Collect the newest fully closed MEXC USDT futures candles for seven contracts at
 
 ## Contract and invariants
 
-- The worker requires `DATABASE_URL` and runs one cycle with `--once` or repeatedly at a configurable interval (default 60 seconds). Cycles cannot overlap within one worker. Deploy exactly one worker replica until distributed locking exists.
+- The worker requires `DATABASE_URL` and runs one cycle with `--once` or repeatedly at a configurable interval (default 60 seconds). Cycles cannot overlap within one worker. Deploy exactly one worker replica until distributed locking exists. Spec 004 adds one BTC 15m context target, bringing a cycle to fifteen requests.
 - Provider calls are spaced by at least 150 ms and use the adapter's five-second timeout. A full cycle remains below the documented MEXC contract API rate limit in normal operation. Provider errors are logged by market and counted.
 - Store venue, contract ID, interval, UTC open/close/retrieval times, OHLCV, and source. A unique key on venue, contract ID, interval, and open time makes replay idempotent. A duplicate must not overwrite the original observation.
 - Record cycle start/end, successes, provider failures, and database status. If persistence fails, the cycle fails visibly; no success heartbeat is written.
