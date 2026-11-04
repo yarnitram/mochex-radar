@@ -1,11 +1,15 @@
-"""Read only foundation API; no market feed is connected yet."""
+"""Read only market data and collector status API."""
 
+import asyncio
+import os
 import httpx
+import psycopg
 from fastapi import Depends, FastAPI, HTTPException
 
 from mochex_radar.futures_feed import INTERVALS, FeedUnavailable, fetch_latest_closed
 
 from mochex_radar.markets import core_markets
+from mochex_radar.storage import latest_cycle
 
 app = FastAPI(title="Mochex Radar", version="0.1.0")
 
@@ -18,6 +22,18 @@ async def get_http_client():
 @app.get("/health/live")
 def live() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/api/v1/collector/status")
+async def collector_status() -> dict[str, object]:
+    dsn = os.environ.get("DATABASE_URL")
+    if not dsn:
+        return {"status": "disabled", "last_cycle": None}
+    try:
+        cycle = await asyncio.to_thread(latest_cycle, dsn)
+    except psycopg.Error as exc:
+        raise HTTPException(status_code=503, detail="collector status unavailable") from exc
+    return {"status": "completed" if cycle else "pending", "last_cycle": cycle}
 
 
 @app.get("/api/v1/markets/core")
