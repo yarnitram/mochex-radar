@@ -6,7 +6,7 @@ import psycopg
 import pytest
 
 from mochex_radar.futures_feed import Candle
-from mochex_radar.storage import initialize_database, latest_cycle, recent_btc_candles, store_cycle
+from mochex_radar.storage import initialize_database, latest_cycle, recent_btc_candles, store_cycle, store_stream_candle
 
 
 @pytest.mark.skipif(not os.environ.get("TEST_DATABASE_URL"), reason="requires temporary PostgreSQL")
@@ -47,3 +47,18 @@ def test_btc_context_candles_roundtrip_in_order() -> None:
         with psycopg.connect(dsn) as conn:
             conn.execute("DELETE FROM market_candles WHERE venue = %s AND market_id = %s", ("mexc-usdt-futures", "BTC_USDT"))
             conn.execute("DELETE FROM collector_cycles WHERE started_at = %s", (now,))
+
+
+@pytest.mark.skipif(not os.environ.get("TEST_DATABASE_URL"), reason="requires temporary PostgreSQL")
+def test_stream_candle_insert_is_idempotent() -> None:
+    dsn = os.environ["TEST_DATABASE_URL"]
+    initialize_database(dsn)
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    candle = Candle("cex:mexc-usdt-futures:STREAM_TEST_USDT", "15m", now - timedelta(minutes=15),
+                    now, now, Decimal("1"), Decimal("2"), Decimal("0.5"), Decimal("1.5"), Decimal("10"))
+    try:
+        assert store_stream_candle(dsn, candle) is True
+        assert store_stream_candle(dsn, candle) is False
+    finally:
+        with psycopg.connect(dsn) as conn:
+            conn.execute("DELETE FROM market_candles WHERE market_id = %s", ("STREAM_TEST_USDT",))

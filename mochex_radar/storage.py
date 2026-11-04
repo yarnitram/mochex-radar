@@ -98,3 +98,19 @@ def recent_btc_candles(dsn: str) -> list[Candle]:
             ("mexc-usdt-futures", "BTC_USDT", "15m"),
         ).fetchall()
     return [Candle("cex:mexc-usdt-futures:BTC_USDT", "15m", *row) for row in reversed(rows)]
+
+
+def store_stream_candle(dsn: str, candle: Candle) -> bool:
+    _, venue, market_id = candle.asset_id.split(":", 2)
+    with psycopg.connect(dsn, connect_timeout=5) as conn:
+        cursor = conn.execute(
+            """INSERT INTO market_candles
+            (venue, market_id, interval, open_time, close_time, retrieved_at,
+             open_price, high_price, low_price, close_price, volume, source)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (venue, market_id, interval, open_time) DO NOTHING""",
+            (venue, market_id, candle.interval, candle.open_time, candle.close_time,
+             candle.retrieved_at, candle.open, candle.high, candle.low, candle.close,
+             candle.volume, candle.source),
+        )
+    return cursor.rowcount == 1

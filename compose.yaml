@@ -36,5 +36,15 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  streamer:
+    build: .
+    command: ["python", "-m", "mochex_radar.websocket_feed"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   postgres_data:

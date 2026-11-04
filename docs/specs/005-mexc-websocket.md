@@ -11,8 +11,8 @@ Use MEXC's public USDT futures WebSocket at `wss://contract.mexc.com/edge` to ob
 - Send `sub.kline` for each of 15 contract/interval targets; send application `ping` every 15 seconds, since the documented server disconnects after one minute without a ping.
 - Accept only `push.kline` events with a subscribed symbol and interval. Validate the envelope, exchange timestamp, window start, finite OHLC, and nonnegative quantity.
 - A pushed candle is a live update, not a final candle. Finalize a window only after the next window begins or REST confirms it closed; never store a mutable candle as final.
-- Deduplicate final candles through the existing PostgreSQL key. If the socket disconnects or a gap is detected, reconnect with bounded backoff and reconcile via REST.
-- Expose connection, last event, last finalized candle, reconnect count, and stale state without secrets.
+- Deduplicate final candles through the existing PostgreSQL key. On startup, reconcile via REST. If the socket disconnects or a gap is detected, reconnect with bounded backoff; the existing REST collector continues reconciling closed windows independently.
+- Connection and finalization failures are logged. A persistent stream health endpoint is deferred to the next observability phase; the current API exposes the REST collector's last cycle only.
 - No account login, signed subscriptions, orders, or wallet operations.
 
 ## Acceptance
