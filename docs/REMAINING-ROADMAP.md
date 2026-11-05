@@ -26,13 +26,16 @@ provider validation may change the scope estimate and sequencing.
 5. **Outcome backtesting and forward paper validation.** Existing replay foundations
    now have a local dataset/run registry and descriptive baseline/holdout comparisons, with explicit hypothetical cost sensitivity and point-in-time coverage readiness diagnostics and a manual predeclared forward observation journal; still need broader labels, metrics, independent real-data evidence, observed depth/impact modeling and forward-paper validation. Exit: no future knowledge/ingestion leaks, universe
    bias is disclosed, reproducible reports include failed cases and paper feasibility.
-6. **Redis live state and coordination — partial.** Provisional live snapshot publication/API, atomic ordering, TTL, stale guards and cache-outage tests are implemented. Durable paper coordination uses shared exclusive journal writes. Broader queues/cache
-   and controlled worker coordination while PostgreSQL retains durable evidence.
+6. **Redis live state and coordination — partial.** Provisional live snapshots,
+   atomic ordering, TTL, stale guards and cache-outage tests are implemented.
+   Paper coordination uses shared exclusive journal writes. Broader worker queues
+   and coordination remain, with PostgreSQL retaining durable evidence.
    Exit: restart, duplicate work, stale cache and Redis-outage tests pass without
    presenting stale data as current or losing durable outbox/evidence records.
-7. **Operational hardening — pilot baseline implemented.** Loopback access/API token, private configuration, readiness/bootstrap, pinned builds and isolated backup/restore/restart tests are implemented. Remaining work includes broader access control, metrics/provider-cost accounting,
-   metrics/provider-cost accounting, pinned dependencies/images, migrations and
-   tested backup/restore. Exit: full stack tests and recovery runbook pass, logs
+7. **Operational hardening — pilot baseline implemented.** Loopback/API-token access,
+   private configuration, readiness/bootstrap, pinned builds and isolated recovery
+   tests are implemented. Broader access control, metrics/cost accounting and
+   migration operations remain. Exit: full stack tests and recovery runbook pass, logs
    redact credentials, and public access is configured deliberately.
 8. **Proxmox deployment — next external gate.** Local preflight, verified-commit update/recovery and timer templates are prepared. Verify actual host/guest IDs, source and backup paths; deploy
    the tested stack to a dedicated guest with restricted access. Add controlled

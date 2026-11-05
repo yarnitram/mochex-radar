@@ -219,6 +219,7 @@ class Runtime:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             current = json.loads((self.state / "current.json").read_text())["sha"] if (self.state / "current.json").exists() else None
             self.git("fetch", "origin", "main")
+            self.git("merge-base", "--is-ancestor", "HEAD", "origin/main")
             candidate = rollback or self.git("rev-parse", "origin/main")
             if not SHA.fullmatch(candidate): raise ValueError("full candidate SHA required")
             self.git("merge-base", "--is-ancestor", candidate, "origin/main")

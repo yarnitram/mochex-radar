@@ -4,6 +4,10 @@ on:
   push:
   pull_request:
 
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   isolated-stack:
     runs-on: ubuntu-latest
