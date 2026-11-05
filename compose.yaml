@@ -108,5 +108,16 @@ services:
         condition: service_healthy
     restart: "on-failure:3"
 
+  backfill:
+    profiles: ["backfill"]
+    build: .
+    command: ["python", "-m", "mochex_radar.backfill", "--candles", "${BACKFILL_CANDLES:-24}"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
 volumes:
   postgres_data:

@@ -131,3 +131,23 @@ def recent_candles(dsn: str, market_id: str, interval: str, as_of: datetime, lim
             (venue, market_id, interval, as_of, as_of, limit),
         ).fetchall()
     return [Candle(f"cex:{venue}:{market_id}", interval, *row) for row in reversed(rows)]
+
+
+def store_candles(dsn: str, candles: list[Candle]) -> int:
+    """Idempotently store candles without writing a collector cycle record; returns newly inserted rows."""
+    inserted = 0
+    with psycopg.connect(dsn, connect_timeout=5) as conn:
+        for candle in candles:
+            _, venue, market_id = candle.asset_id.split(":", 2)
+            cursor = conn.execute(
+                """INSERT INTO market_candles
+                (venue, market_id, interval, open_time, close_time, retrieved_at,
+                 open_price, high_price, low_price, close_price, volume, source)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (venue, market_id, interval, open_time) DO NOTHING""",
+                (venue, market_id, candle.interval, candle.open_time, candle.close_time,
+                 candle.retrieved_at, candle.open, candle.high, candle.low, candle.close,
+                 candle.volume, candle.source),
+            )
+            inserted += cursor.rowcount
+    return inserted
