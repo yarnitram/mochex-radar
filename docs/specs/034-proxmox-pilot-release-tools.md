@@ -1,5 +1,13 @@
 # Spec 034 — Private Proxmox pilot deployment gate
 
+## Controlled Telegram alert opt-in
+
+The deployment updater keeps the `alerts` Compose profile, Telegram sending and
+data-quality notice generation disabled by default. It may activate them only
+when `RADAR_ALERTS_ENABLED=true`, `TELEGRAM_SEND_ENABLED=true`, a valid Telegram
+bot token and a numeric chat ID are all present in the private runtime file.
+Invalid or incomplete alert credentials fail preflight before any release starts.
+
 Provide Linux guest tooling; never run on the Proxmox hypervisor or invent host/
 guest IDs. Verify the source root/Git remote, clean checkout, external private env,
 dedicated state path, required commands and private loopback configuration before

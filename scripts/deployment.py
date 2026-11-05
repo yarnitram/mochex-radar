@@ -43,6 +43,16 @@ def private_environment(path):
     for key, default in (("RADAR_API_PORT", "8000"), ("RADAR_DASHBOARD_PORT", "3000")):
         if not values.get(key, default).isdigit() or not 1024 <= int(values.get(key, default)) <= 65535:
             raise ValueError("pilot ports must be explicit unprivileged ports")
+    alerts_enabled = values.get("RADAR_ALERTS_ENABLED", "false").lower()
+    if alerts_enabled not in ("true", "false"):
+        raise ValueError("RADAR_ALERTS_ENABLED must be true or false")
+    if alerts_enabled == "true":
+        telegram_token = values.get("TELEGRAM_BOT_TOKEN", "")
+        chat_id = values.get("TELEGRAM_CHAT_ID", "")
+        if (values.get("TELEGRAM_SEND_ENABLED", "false").lower() != "true"
+                or not re.fullmatch(r"[0-9]+:[A-Za-z0-9_-]+", telegram_token)
+                or not re.fullmatch(r"-?[0-9]+", chat_id)):
+            raise ValueError("enabled alerts require valid Telegram credentials and send opt-in")
     return values
 
 
@@ -101,9 +111,12 @@ class Runtime:
     def __init__(self, source, state, env_file):
         self.source, self.state, self.env_file = validate_paths(source, state, env_file)
         self.values = private_environment(self.env_file)
+        alerts_enabled = self.values.get("RADAR_ALERTS_ENABLED", "false").lower() == "true"
         self.environment = {**os.environ, **self.values, "GIT_TERMINAL_PROMPT": "0",
                             "GIT_SSH_COMMAND": "ssh -oBatchMode=yes -oStrictHostKeyChecking=yes",
-                            "COMPOSE_PROFILES": "", "TELEGRAM_SEND_ENABLED": "false", "ALERT_DATA_QUALITY_ENABLED": "false",
+                            "COMPOSE_PROFILES": "alerts" if alerts_enabled else "",
+                            "TELEGRAM_SEND_ENABLED": self.values.get("TELEGRAM_SEND_ENABLED", "false") if alerts_enabled else "false",
+                            "ALERT_DATA_QUALITY_ENABLED": self.values.get("ALERT_DATA_QUALITY_ENABLED", "false") if alerts_enabled else "false",
                             "DEX_LOOKUP_ENABLED": "false", "SOLANA_AUTHORITIES_ENABLED": "false",
                             "PAPER_JOURNAL_PATH": str(self.state / "research")}
 
