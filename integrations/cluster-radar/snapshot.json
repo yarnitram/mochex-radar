@@ -25,6 +25,10 @@
       "sha256": "e3d8bdce803be7ef2c9737e4cb2ca4e5268d7f95e5803d4b6a85bdd94f0295c8"
     },
     {
+      "path": "cluster_radar/intelligence/research.py",
+      "sha256": "446d0a20ecbda0b91dbb12ae787a67abced5cdcd444ecf270ecf1083c153f226"
+    },
+    {
       "path": "cluster_radar/main.py",
       "sha256": "f30651491fa911a06c983cfe6911ffd38bf0f13dc3689020c7f856a76985127a"
     },
@@ -61,6 +65,10 @@
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
+      "path": "cluster_radar/signals/research.py",
+      "sha256": "bb5068d0964cf65d021025fbccdffdad996d870b88da1c3453a51b5be7fc18e5"
+    },
+    {
       "path": "cluster_radar/signals/rules.py",
       "sha256": "cfbf14b1194b46e0585a2ac0f25a30146c0ba44e644237a52482e3837b918f70"
     },
@@ -69,6 +77,6 @@
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   ],
-  "upstream_commit": "7b6d03ad9abbf1f06ad7d7184a6b67e9137efe0a",
+  "upstream_commit": "20a9d5edce573b332d2e9049f284ad16dc989f12",
   "hash_encoding": "UTF-8 source bytes with CRLF normalized to LF"
 }

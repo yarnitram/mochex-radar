@@ -1,0 +1,206 @@
+{
+  "format_version": 1,
+  "mint": "fixture:solana-mint",
+  "as_of": "2026-01-01T12:00:00Z",
+  "window_end": "2026-01-01T12:00:00Z",
+  "lookback_seconds": 900,
+  "swaps": [
+    {
+      "signature": "fixture:tx-0",
+      "instruction_path": [
+        0,
+        0
+      ],
+      "swap_index": 0,
+      "mint": "fixture:solana-mint",
+      "pool": "fixture:pool",
+      "owner": "wallet-a",
+      "side": "BUY",
+      "token_amount": "1",
+      "usd_amount": "100",
+      "event_at": "2026-01-01T11:59:00Z",
+      "known_at": "2026-01-01T12:00:00Z",
+      "source": "synthetic-fixture"
+    },
+    {
+      "signature": "fixture:tx-1",
+      "instruction_path": [
+        0,
+        1
+      ],
+      "swap_index": 0,
+      "mint": "fixture:solana-mint",
+      "pool": "fixture:pool",
+      "owner": "wallet-c",
+      "side": "BUY",
+      "token_amount": "1",
+      "usd_amount": "75",
+      "event_at": "2026-01-01T11:59:00Z",
+      "known_at": "2026-01-01T12:00:00Z",
+      "source": "synthetic-fixture"
+    },
+    {
+      "signature": "fixture:tx-2",
+      "instruction_path": [
+        0,
+        2
+      ],
+      "swap_index": 0,
+      "mint": "fixture:solana-mint",
+      "pool": "fixture:pool",
+      "owner": "wallet-b",
+      "side": "SELL",
+      "token_amount": "1",
+      "usd_amount": "50",
+      "event_at": "2026-01-01T11:59:00Z",
+      "known_at": "2026-01-01T12:00:00Z",
+      "source": "synthetic-fixture"
+    }
+  ],
+  "funding": [
+    {
+      "wallet": "wallet-a",
+      "funder": "fixture:funder",
+      "signature": "fixture:funding-wallet-a",
+      "event_at": "2026-01-01T11:45:00Z",
+      "known_at": "2026-01-01T12:00:00Z",
+      "label": "NON_CEX",
+      "label_known_at": "2026-01-01T12:00:00Z",
+      "source": "synthetic-fixture"
+    },
+    {
+      "wallet": "wallet-c",
+      "funder": "fixture:funder",
+      "signature": "fixture:funding-wallet-c",
+      "event_at": "2026-01-01T11:45:00Z",
+      "known_at": "2026-01-01T12:00:00Z",
+      "label": "NON_CEX",
+      "label_known_at": "2026-01-01T12:00:00Z",
+      "source": "synthetic-fixture"
+    }
+  ],
+  "pump_features": [
+    {
+      "name": "independent_buying",
+      "value": "0.8",
+      "window_start": "2026-01-01T11:45:00Z",
+      "window_end": "2026-01-01T12:00:00Z",
+      "known_at": "2026-01-01T12:00:00Z",
+      "source": "synthetic-fixture",
+      "independence_group": "declared:independent_buying",
+      "references": [
+        "fixture:measurement:independent_buying"
+      ]
+    },
+    {
+      "name": "compression_structure",
+      "value": "0.8",
+      "window_start": "2026-01-01T11:45:00Z",
+      "window_end": "2026-01-01T12:00:00Z",
+      "known_at": "2026-01-01T12:00:00Z",
+      "source": "synthetic-fixture",
+      "independence_group": "declared:compression_structure",
+      "references": [
+        "fixture:measurement:compression_structure"
+      ]
+    },
+    {
+      "name": "new_owner_participation",
+      "value": "0.8",
+      "window_start": "2026-01-01T11:45:00Z",
+      "window_end": "2026-01-01T12:00:00Z",
+      "known_at": "2026-01-01T12:00:00Z",
+      "source": "synthetic-fixture",
+      "independence_group": "declared:new_owner_participation",
+      "references": [
+        "fixture:measurement:new_owner_participation"
+      ]
+    },
+    {
+      "name": "wallet_quality",
+      "value": "0.8",
+      "window_start": "2026-01-01T11:45:00Z",
+      "window_end": "2026-01-01T12:00:00Z",
+      "known_at": "2026-01-01T12:00:00Z",
+      "source": "synthetic-fixture",
+      "independence_group": "declared:wallet_quality",
+      "references": [
+        "fixture:measurement:wallet_quality"
+      ]
+    },
+    {
+      "name": "organic_volume",
+      "value": "0.8",
+      "window_start": "2026-01-01T11:45:00Z",
+      "window_end": "2026-01-01T12:00:00Z",
+      "known_at": "2026-01-01T12:00:00Z",
+      "source": "synthetic-fixture",
+      "independence_group": "declared:organic_volume",
+      "references": [
+        "fixture:measurement:organic_volume"
+      ]
+    }
+  ],
+  "dump_features": [
+    {
+      "name": "holder_distribution",
+      "value": "1",
+      "window_start": "2026-01-01T11:45:00Z",
+      "window_end": "2026-01-01T12:00:00Z",
+      "known_at": "2026-01-01T12:00:00Z",
+      "source": "synthetic-fixture",
+      "independence_group": "declared:holder_distribution",
+      "references": [
+        "fixture:measurement:holder_distribution"
+      ]
+    },
+    {
+      "name": "buyer_exhaustion",
+      "value": "1",
+      "window_start": "2026-01-01T11:45:00Z",
+      "window_end": "2026-01-01T12:00:00Z",
+      "known_at": "2026-01-01T12:00:00Z",
+      "source": "synthetic-fixture",
+      "independence_group": "declared:buyer_exhaustion",
+      "references": [
+        "fixture:measurement:buyer_exhaustion"
+      ]
+    },
+    {
+      "name": "price_volume_divergence",
+      "value": "1",
+      "window_start": "2026-01-01T11:45:00Z",
+      "window_end": "2026-01-01T12:00:00Z",
+      "known_at": "2026-01-01T12:00:00Z",
+      "source": "synthetic-fixture",
+      "independence_group": "declared:price_volume_divergence",
+      "references": [
+        "fixture:measurement:price_volume_divergence"
+      ]
+    },
+    {
+      "name": "liquidity_deterioration",
+      "value": "1",
+      "window_start": "2026-01-01T11:45:00Z",
+      "window_end": "2026-01-01T12:00:00Z",
+      "known_at": "2026-01-01T12:00:00Z",
+      "source": "synthetic-fixture",
+      "independence_group": "declared:liquidity_deterioration",
+      "references": [
+        "fixture:measurement:liquidity_deterioration"
+      ]
+    },
+    {
+      "name": "structure_weakness",
+      "value": "1",
+      "window_start": "2026-01-01T11:45:00Z",
+      "window_end": "2026-01-01T12:00:00Z",
+      "known_at": "2026-01-01T12:00:00Z",
+      "source": "synthetic-fixture",
+      "independence_group": "declared:structure_weakness",
+      "references": [
+        "fixture:measurement:structure_weakness"
+      ]
+    }
+  ]
+}

@@ -116,3 +116,12 @@ Dashboard Authority evidence reads stored partial observations without making RP
 calls. Mint search/freshness filters apply to the newest 100 readings. Permission
 absence is distinct from safety; overall security remains UNKNOWN. See
 `docs/specs/018-authority-evidence-dashboard.md`.
+
+## Offline wallet research
+
+`python -m mochex_radar.research_report --input tests/fixtures/research-dataset.json`
+generates a synthetic example of point-in-time swap/funding metrics and provisional
+PRD-weighted Pump/Dump scores. It makes no provider calls, approves no signal and
+sends no alert. Strict input/provenance requirements and limitations:
+`docs/specs/019-wallet-research-reports.md`. Remaining major work areas:
+`docs/REMAINING-ROADMAP.md`.
