@@ -127,13 +127,8 @@ def _timestamp(value: str) -> datetime:
     return result
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", type=Path, required=True)
-    parser.add_argument("--output", type=Path, required=True)
-    args = parser.parse_args()
-    with args.input.open("rb") as handle:
-        raw = handle.read(MAX_BYTES + 1)
+def report_from_bytes(raw: bytes) -> dict:
+    """Shared bounded dataset parser for the CLI and immutable research bundles."""
     if len(raw) > MAX_BYTES:
         raise ValueError("dataset exceeds 5MB")
     data = json.loads(raw)
@@ -154,9 +149,19 @@ def main() -> None:
         candles.append(Candle(**row))
     if not isinstance(data["decisions"], list) or len(data["decisions"]) > 1000:
         raise ValueError("invalid decision array")
-    report = validation_report(candles, data["asset_id"], data["interval"],
+    return validation_report(candles, data["asset_id"], data["interval"],
                                [_timestamp(t) for t in data["decisions"]],
                                _timestamp(data["holdout_at"]), _timestamp(data["evaluation_at"]))
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--input", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args()
+    with args.input.open("rb") as handle:
+        raw = handle.read(MAX_BYTES + 1)
+    report = report_from_bytes(raw)
     with args.output.open("x", encoding="utf-8") as handle:
         json.dump(report, handle, indent=2)
         handle.write("\n")

@@ -139,3 +139,7 @@ simulate execution, costs or profitability. See `docs/specs/025-core-feature-val
 For actual stored observations, the manual `mochex_radar.validation_export` command
 creates an input dataset without calling the exchange or changing the database.
 Runbook, prerequisites and timestamp limitations: `docs/REAL-DATA-VALIDATION.md`.
+
+`python -m mochex_radar.research_registry --help` provides private local run bundles,
+hash verification and source-matched replay. It preserves exact dataset bytes and
+keeps synthetic/observed labels explicit; neither label establishes data authenticity.

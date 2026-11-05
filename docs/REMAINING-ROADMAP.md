@@ -24,7 +24,7 @@ provider validation may change the scope estimate and sequencing.
    preserve identities and risk models; ambiguous assets remain unclassified and
    provider coverage gaps are visible.
 5. **Outcome backtesting and forward paper validation.** Existing replay foundations
-   need dataset/run registries, labels, metrics, baseline/holdout comparisons and
+   now have a local dataset/run registry and descriptive baseline/holdout comparisons; still need broader labels, metrics, independent real-data evidence and
    fee/slippage/depth assumptions. Exit: no future knowledge/ingestion leaks, universe
    bias is disclosed, reproducible reports include failed cases and paper feasibility.
 6. **Redis live state and coordination.** Add ephemeral live snapshots/queues/cache

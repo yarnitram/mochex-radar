@@ -60,3 +60,26 @@ gross next-boundary candle returns with no spread, fees, funding, slippage or
 execution simulation. Statistical tests, larger independent holdouts, dataset/run
 registry, cost/depth modeling and forward paper validation remain later work.
 This process does not enable signals, alerts or live trading.
+
+## Register and reproduce a run
+
+For a private local registry, use the ignored work directory:
+
+```text
+python -m mochex_radar.research_registry create --registry work/research-runs --input work/sol-dataset-v1.json --data-kind observed --rationale "Preselected SOL 15m observation window and chronological holdout; record the exact selection rationale here"
+python -m mochex_radar.research_registry verify --bundle work/research-runs/<RUN_ID> --replay
+```
+
+Use `--data-kind synthetic` for the repository example fixture. The observed label
+is caller-declared and does not establish provider authenticity. Keep secrets out
+of the rationale. Registration outputs a content-derived RUN_ID and saves the
+original dataset bytes, report, source fingerprints and completion manifest.
+Repeated registration of the same content/rationale/source is refused.
+
+Verification checks hashes and recorded run identity. Replay additionally requires
+matching engine source and reproduces the report exactly. Preserve the source
+commit alongside the bundle so it can be checked out later. Hashes provide
+consistency checks, not a signature or protection against someone rewriting the
+whole registry. Interrupted bundles without a complete manifest remain incomplete;
+they are never silently overwritten or automatically deleted. Registry files use
+ordinary filesystem permissions; put them in private research storage.
