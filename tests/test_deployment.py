@@ -24,6 +24,27 @@ def test_private_env_requires_matching_internal_database_and_explicit_credential
         private_environment(path)
 
 
+def test_alert_profile_is_disabled_by_default_and_requires_valid_opt_in(tmp_path):
+    path = private_env(tmp_path / "private.env")
+    runtime = Runtime(tmp_path / "source", tmp_path / "state", path)
+    assert runtime.environment["COMPOSE_PROFILES"] == ""
+    assert runtime.environment["TELEGRAM_SEND_ENABLED"] == "false"
+    path.write_text(path.read_text() + "RADAR_ALERTS_ENABLED=true\nTELEGRAM_SEND_ENABLED=true\nTELEGRAM_BOT_TOKEN=invalid token\nTELEGRAM_CHAT_ID=8720642900\n")
+    with pytest.raises(ValueError, match="valid Telegram"):
+        private_environment(path)
+    path.write_text(path.read_text().replace("invalid token", "123456789:AAExampleToken_DoNotUse123"))
+    enabled = Runtime(tmp_path / "source", tmp_path / "state2", path)
+    assert enabled.environment["COMPOSE_PROFILES"] == "alerts"
+    assert enabled.environment["TELEGRAM_SEND_ENABLED"] == "true"
+
+
+def test_alert_profile_rejects_missing_credentials_when_enabled(tmp_path):
+    path = private_env(tmp_path / "private.env")
+    path.write_text(path.read_text() + "RADAR_ALERTS_ENABLED=true\nTELEGRAM_SEND_ENABLED=true\n")
+    with pytest.raises(ValueError, match="valid Telegram"):
+        private_environment(path)
+
+
 def test_paths_refuse_secrets_state_inside_source_and_unmanaged_directories(tmp_path):
     source = tmp_path / "source"; source.mkdir()
     env = private_env(tmp_path / "private.env")
