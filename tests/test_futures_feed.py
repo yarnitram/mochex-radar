@@ -40,6 +40,7 @@ async def test_fetch_uses_futures_endpoint_and_interval() -> None:
     current = int(datetime.now(timezone.utc).timestamp() // 3600 * 3600)
 
     def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.host == "api.mexc.com"
         assert request.url.path == "/api/v1/contract/kline/SOL_USDT"
         assert request.url.params["interval"] == "Min60"
         assert int(request.url.params["end"]) - int(request.url.params["start"]) == 14400

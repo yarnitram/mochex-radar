@@ -11,7 +11,7 @@ import httpx
 from mochex_radar.markets import CexMarket
 
 INTERVALS = {"15m": ("Min15", 900), "1h": ("Min60", 3600)}
-BASE_URL = "https://contract.mexc.com"
+BASE_URL = "https://api.mexc.com"
 
 
 class FeedUnavailable(Exception):
