@@ -91,12 +91,10 @@ def funding_groups(records: list[FundingEvidence], as_of: datetime) -> dict:
             "conflicting_wallets":sorted(w for w,f in funders.items() if len(f)>1)}
 
 
-def swap_metrics(swaps: list[Swap], mint: str, as_of: datetime, lookback: timedelta) -> dict:
-    require_utc(as_of)
-    if not mint or lookback <= timedelta(0):
-        raise ValueError("mint and positive lookback required")
-    # Resolve first eligible observation per event before applying mint/window filters.
-    # Later corrections cannot rewrite earlier knowledge; conflicting first records fail.
+def first_observations(swaps: list[Swap], as_of: datetime) -> tuple[dict[tuple, Swap], dict[tuple, set[str]], int]:
+    """Resolve first eligible observation per swap identity known at or before as_of.
+
+    Later corrections cannot rewrite earlier knowledge; conflicting first records fail."""
     first: dict[tuple, Swap] = {}
     sources: dict[tuple, set[str]] = {}
     revisions = 0
@@ -114,6 +112,14 @@ def swap_metrics(swaps: list[Swap], mint: str, as_of: datetime, lookback: timede
                 revisions += 1
             else:
                 sources[row.identity].add(row.source)
+    return first, sources, revisions
+
+
+def swap_metrics(swaps: list[Swap], mint: str, as_of: datetime, lookback: timedelta) -> dict:
+    require_utc(as_of)
+    if not mint or lookback <= timedelta(0):
+        raise ValueError("mint and positive lookback required")
+    first, sources, revisions = first_observations(swaps, as_of)
     rows = [s for s in first.values() if s.mint == mint and as_of-lookback < s.event_at <= as_of]
     complete_usd = bool(rows) and all(s.usd_amount is not None for s in rows)
     buys = sum((s.usd_amount for s in rows if s.side == "BUY"), Decimal(0)) if complete_usd else None
