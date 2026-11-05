@@ -44,6 +44,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
       COLLECT_INTERVAL_SECONDS: ${COLLECT_INTERVAL_SECONDS:-60}
+      ALERT_DATA_QUALITY_ENABLED: ${ALERT_DATA_QUALITY_ENABLED:-false}
     depends_on:
       db:
         condition: service_healthy

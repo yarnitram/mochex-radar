@@ -78,3 +78,8 @@ The worker uses durable deduplication, cooldowns, expiry and attempt limits.
 Ambiguous delivery is held for review. Market-signal producers are not enabled.
 See `docs/specs/012-telegram-outbox.md` before enabling the optional Compose
 `alerts` profile. `GET /api/v1/alerts/status` reports counts only.
+
+Optional `ALERT_DATA_QUALITY_ENABLED=true` queues incomplete MEXC collection-cycle
+notices after candle storage succeeds. It does not enable Telegram sending.
+Healthy duplicate cycles do not create warnings; queue errors do not undo stored
+candles. See `docs/specs/013-collector-quality-notices.md`.

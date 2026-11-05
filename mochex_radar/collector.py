@@ -12,6 +12,8 @@ import httpx
 from mochex_radar.futures_feed import Candle, FeedUnavailable, INTERVALS, fetch_latest_closed
 from mochex_radar.markets import CexMarket, btc_context_market, core_markets
 from mochex_radar.storage import CycleResult, initialize_database, store_cycle
+from mochex_radar.alert_store import initialize_alert_store
+from mochex_radar.quality_notices import report_cycle_quality
 
 log = logging.getLogger(__name__)
 Fetch = Callable[[CexMarket, str, httpx.AsyncClient], Awaitable[Candle]]
@@ -42,6 +44,12 @@ async def collect_once(client: httpx.AsyncClient, persist: Persist,
 
 async def run(dsn: str, interval_seconds: int, once: bool = False) -> None:
     await asyncio.to_thread(initialize_database, dsn)
+    notices_enabled = os.environ.get("ALERT_DATA_QUALITY_ENABLED", "false").lower() == "true"
+    if notices_enabled:
+        try:
+            await asyncio.to_thread(initialize_alert_store, dsn)
+        except Exception as exc:
+            log.error("quality notice initialization unavailable (%s)", type(exc).__name__)
     async with httpx.AsyncClient() as client:
         async def persist(candles: list[Candle], started: datetime, finished: datetime, failures: int) -> int:
             return await asyncio.to_thread(store_cycle, dsn, candles, started, finished, failures)
@@ -50,6 +58,9 @@ async def run(dsn: str, interval_seconds: int, once: bool = False) -> None:
             try:
                 result = await collect_once(client, persist)
                 log.info("cycle complete stored=%d provider_failures=%d", result.stored_count, result.provider_failures)
+                if notices_enabled:
+                    outcome = await report_cycle_quality(dsn, result)
+                    log.info("quality notice outcome=%s", outcome)
             except Exception:
                 log.exception("collector cycle failed")
                 if once:
