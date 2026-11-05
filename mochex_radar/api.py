@@ -20,6 +20,7 @@ from mochex_radar.markets import core_markets
 from mochex_radar.storage import latest_cycle, recent_btc_candles
 from mochex_radar.dex_store import initialize_dex_store, observation_history, store_observations
 from mochex_radar.provider_budget import initialize_budget_store, PersistentDexScreener
+from mochex_radar.dex_worker import recent_scans
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -98,6 +99,20 @@ async def get_http_client():
 @app.get("/health/live")
 def live() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/api/v1/dex/scans")
+async def dex_scans(limit: int = 100):
+    dsn = os.environ.get("DATABASE_URL")
+    if not dsn:
+        return {"status": "disabled", "scans": []}
+    try:
+        scans = await asyncio.to_thread(recent_scans, dsn, limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="limit must be 1..1000") from exc
+    except psycopg.Error as exc:
+        raise HTTPException(status_code=503, detail="DEX scan history unavailable") from exc
+    return {"status": "stored_scans", "scans": scans}
 
 
 @app.get("/api/v1/collector/status")

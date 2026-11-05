@@ -53,3 +53,9 @@ With a database configured, DEX lookups also share a durable UTC-day ceiling
 (`DEX_LOOKUP_DAILY_REQUESTS`, default 100). Failed requests count and API restarts
 retain usage. All workers must use the same setting. See
 `docs/specs/009-persistent-provider-budget.md`.
+
+The optional `dex-scanner` Compose profile scans configured Solana mints on a
+schedule, using the shared durable request budget. Populate `config/dex-watchlist.json`
+with explicit categories and provenance before enabling it. Scan audit records are
+available at `GET /api/v1/dex/scans`. Setup and limits:
+`docs/specs/010-dex-watchlist-worker.md`.

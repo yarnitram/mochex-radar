@@ -49,5 +49,21 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  dex-scanner:
+    profiles: ["dex"]
+    build: .
+    command: ["python", "-m", "mochex_radar.dex_worker"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+      DEX_LOOKUP_DAILY_REQUESTS: ${DEX_LOOKUP_DAILY_REQUESTS:-100}
+      DEX_SCAN_INTERVAL_SECONDS: ${DEX_SCAN_INTERVAL_SECONDS:-900}
+      DEX_WATCHLIST_PATH: /config/dex-watchlist.json
+    volumes:
+      - ./config/dex-watchlist.json:/config/dex-watchlist.json:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "on-failure:3"
+
 volumes:
   postgres_data:

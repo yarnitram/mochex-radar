@@ -33,30 +33,33 @@ def initialize_dex_store(dsn: str) -> None:
         conn.execute(SCHEMA)
 
 
-def store_observations(dsn: str, candidates: list[Candidate]) -> int:
+def store_observations(dsn: str, candidates: list[Candidate], *, connection=None) -> int:
     """A repeated observation is idempotent; conflicting content rolls back the batch."""
+    if connection is None:
+        with psycopg.connect(dsn, connect_timeout=5) as conn:
+            return store_observations(dsn, candidates, connection=conn)
     inserted = 0
-    with psycopg.connect(dsn, connect_timeout=5) as conn:
-        for candidate in candidates:
-            if candidate.stage is not MarketStage.DEX:
-                raise ValueError("only DEX pool observations are supported")
-            payload = jsonable_encoder(asdict(candidate), custom_encoder={Decimal: str})
-            digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
-            key = (candidate.mint, candidate.pool_id, candidate.source, candidate.known_at)
-            cursor = conn.execute(
-                """INSERT INTO dex_observations
-                (mint, pool_id, source, known_at, content_hash, payload)
-                VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING""",
-                (*key, digest, Jsonb(payload)),
-            )
-            inserted += cursor.rowcount
-            if not cursor.rowcount:
-                existing = conn.execute(
-                    """SELECT content_hash FROM dex_observations
-                    WHERE mint=%s AND pool_id=%s AND source=%s AND known_at=%s""", key,
-                ).fetchone()
-                if existing is None or existing[0] != digest:
-                    raise ValueError("conflicting immutable observation")
+    conn = connection
+    for candidate in candidates:
+        if candidate.stage is not MarketStage.DEX:
+            raise ValueError("only DEX pool observations are supported")
+        payload = jsonable_encoder(asdict(candidate), custom_encoder={Decimal: str})
+        digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+        key = (candidate.mint, candidate.pool_id, candidate.source, candidate.known_at)
+        cursor = conn.execute(
+            """INSERT INTO dex_observations
+            (mint, pool_id, source, known_at, content_hash, payload)
+            VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING""",
+            (*key, digest, Jsonb(payload)),
+        )
+        inserted += cursor.rowcount
+        if not cursor.rowcount:
+            existing = conn.execute(
+                """SELECT content_hash FROM dex_observations
+                WHERE mint=%s AND pool_id=%s AND source=%s AND known_at=%s""", key,
+            ).fetchone()
+            if existing is None or existing[0] != digest:
+                raise ValueError("conflicting immutable observation")
     return inserted
 
 
