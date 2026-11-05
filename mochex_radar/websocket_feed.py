@@ -16,6 +16,7 @@ from websockets.exceptions import ConnectionClosed
 from mochex_radar.futures_feed import Candle, INTERVALS, _decimal, fetch_latest_closed
 from mochex_radar.markets import CexMarket, btc_context_market, core_markets
 from mochex_radar.storage import initialize_database, store_stream_candle
+from mochex_radar.live_state import LiveSnapshots, RedisError
 
 log = logging.getLogger(__name__)
 URL = "wss://contract.mexc.com/edge"
@@ -88,16 +89,23 @@ async def app_ping(websocket: Any) -> None:
         await websocket.send('{"method":"ping"}')
 
 
-async def consume(websocket: Any, save: Callable[[Candle], Awaitable[None]]) -> None:
+async def consume(websocket: Any, save: Callable[[Candle], Awaitable[None]], publish=None) -> None:
     for subscription in subscriptions():
         await websocket.send(subscription)
     rollover = Rollover()
     ping_task = asyncio.create_task(app_ping(websocket))
+    suppress_live_until = 0.0
     try:
         async for raw in websocket:
             candle = parse_update(raw, datetime.now(timezone.utc))
             if candle is None:
                 continue
+            if publish is not None and asyncio.get_running_loop().time() >= suppress_live_until:
+                try:
+                    await publish(candle)
+                except (RedisError, ValueError):
+                    suppress_live_until = asyncio.get_running_loop().time() + 30
+                    log.warning("ephemeral live cache unavailable; durable collection continues")
             finalized = rollover.accept(candle)
             if finalized is not None:
                 await save(finalized)
@@ -127,11 +135,16 @@ async def run(dsn: str) -> None:
     async def save(candle: Candle) -> None:
         await asyncio.to_thread(store_stream_candle, dsn, candle)
 
-    async for websocket in connect(URL, open_timeout=10, ping_interval=20, max_size=1_048_576):
-        try:
-            await consume(websocket, save)
-        except ConnectionClosed:
-            log.warning("WebSocket disconnected; reconnecting")
+    live = LiveSnapshots.from_url(os.environ["REDIS_URL"]) if os.environ.get("REDIS_URL") else None
+    try:
+        async for websocket in connect(URL, open_timeout=10, ping_interval=20, max_size=1_048_576):
+            try:
+                await consume(websocket, save, live.publish if live else None)
+            except ConnectionClosed:
+                log.warning("WebSocket disconnected; reconnecting")
+    finally:
+        if live:
+            await live.close()
 
 
 async def smoke() -> None:

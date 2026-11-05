@@ -158,3 +158,8 @@ Manual forward tracking is available through `python -m mochex_radar.paper_journ
 It predeclares future plans and preserves separate capture/outcome snapshots,
 including missed and unavailable observations. No live campaign is started by
 installation. Workflow and limits: `docs/FORWARD-PAPER-TRACKING.md`.
+
+Optional REDIS_URL enables provisional intrabar snapshots from the public streamer.
+`/api/v1/live/core` labels current/stale/missing observations explicitly. Redis loss
+does not replace or stop durable PostgreSQL candle collection. See
+`docs/specs/032-redis-live-snapshots.md` for TTL, outage and provenance limits.

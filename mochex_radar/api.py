@@ -27,9 +27,11 @@ from mochex_radar.alert_store import outbox_status
 from mochex_radar.profile_discovery import recent_polls, discovered_catalog
 from mochex_radar.authority_checks import PersistentAuthorities, authority_history, authority_snapshot, initialize_authority_store, store_authority
 from cluster_radar.providers.solana_authorities import SolanaAuthorities
+from mochex_radar.live_state import LiveSnapshots, RedisError
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    app.state.live_store = LiveSnapshots.from_url(os.environ["REDIS_URL"]) if os.environ.get("REDIS_URL") else None
     app.state.dex_provider = None
     app.state.authority_provider = None
     async with httpx.AsyncClient() as client:
@@ -54,10 +56,27 @@ async def lifespan(app: FastAPI):
                     app.state.dex_provider, dsn,
                     daily_limit=int(os.environ.get("DEX_LOOKUP_DAILY_REQUESTS", "100")),
                 )
-        yield
+        try:
+            yield
+        finally:
+            if app.state.live_store:
+                await app.state.live_store.close()
 
 
 app = FastAPI(title="Mochex Radar", version="0.1.0", lifespan=lifespan)
+
+
+@app.get("/api/v1/live/core")
+async def live_core(request: Request, interval: str = "15m"):
+    if interval not in INTERVALS:
+        raise HTTPException(status_code=422, detail="interval must be 15m or 1h")
+    live = getattr(request.app.state, "live_store", None)
+    if live is None:
+        return {"data_status": "live_disabled", "provisional": True, "finalized": False, "signals_enabled": False}
+    try:
+        return await live.snapshot(interval)
+    except RedisError:
+        raise HTTPException(status_code=503, detail="ephemeral live snapshots unavailable") from None
 
 
 def get_authority_provider(request: Request):

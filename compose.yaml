@@ -1,4 +1,14 @@
 services:
+  redis:
+    image: redis:8-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
   db:
     image: postgres:17
     environment:
@@ -17,6 +27,7 @@ services:
   api:
     build: .
     environment:
+      REDIS_URL: redis://redis:6379/0
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
       DEX_LOOKUP_ENABLED: ${DEX_LOOKUP_ENABLED:-false}
       DEX_LOOKUP_MAX_REQUESTS: ${DEX_LOOKUP_MAX_REQUESTS:-100}
@@ -56,6 +67,7 @@ services:
     build: .
     command: ["python", "-m", "mochex_radar.websocket_feed"]
     environment:
+      REDIS_URL: redis://redis:6379/0
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
     depends_on:
       db:
