@@ -57,8 +57,16 @@ def main():
                 assert exc.code == 401
             core = json.loads(get(api + "/api/v1/dashboard/core", auth=True))
             assert len(core["markets"]) == 7 and all(row["status"] == "missing" for row in core["markets"])
-            page = get(dashboard + "/")
-            assert "MOCHEX" in page
+            deadline = time.monotonic() + 90
+            while time.monotonic() < deadline:
+                try:
+                    if "MOCHEX" in get(dashboard + "/"):
+                        break
+                except (OSError, ValueError):
+                    pass
+                time.sleep(1)
+            else:
+                raise RuntimeError("dashboard did not become ready")
             payload = get(dashboard + "/api/dashboard")
             assert token not in payload and password not in payload
             snapshot = json.loads(payload)
