@@ -83,3 +83,26 @@ consistency checks, not a signature or protection against someone rewriting the
 whole registry. Interrupted bundles without a complete manifest remain incomplete;
 they are never silently overwritten or automatically deleted. Registry files use
 ordinary filesystem permissions; put them in private research storage.
+
+## Compare explicit cost assumptions
+
+Format 1 remains gross-only. To run hypothetical cost sensitivity, make a new
+dataset with `format_version: 2` and `cost_scenarios`. Keep the original export.
+Use `tests/fixtures/core-feature-costs.json` as a synthetic schema example. Every
+scenario must specify entry/exit fees, entry/exit half-spreads, entry/exit adverse
+slippage and the total assumed interval funding cost, all as basis-point strings.
+Do not copy the invented example values as your actual account fee schedule.
+
+The ordinary comparison and registry commands accept both versions. Format 2
+records the assumptions in config hashes and produces per-row and per-split/group
+estimated net returns alongside the unchanged gross comparison. Missing or excluded
+outcomes stay unknown. No scenario is selected as a winner, and no cost is inferred
+from a venue/account tier. Record the rationale before examining holdout results.
+
+The model assumes an illustrative unlevered long and adverse reference-price
+changes. Exit fees apply to estimated exit notional; entry fees and signed funding
+cost apply to entry notional. Negative funding cost represents an assumed credit.
+Funding is a total interval assumption, not a prorated advertised rate. Candle
+prices do not establish order-book mids or fills. This is cost sensitivity, with no
+observed depth, price impact, margin, liquidation, short-fill or latency simulation.
+Independent real-data evaluation and forward paper validation remain necessary.

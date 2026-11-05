@@ -143,3 +143,8 @@ Runbook, prerequisites and timestamp limitations: `docs/REAL-DATA-VALIDATION.md`
 `python -m mochex_radar.research_registry --help` provides private local run bundles,
 hash verification and source-matched replay. It preserves exact dataset bytes and
 keeps synthetic/observed labels explicit; neither label establishes data authenticity.
+
+Optional format-2 inputs add explicit hypothetical fee/spread/slippage/funding
+scenarios to the same comparison and registry commands. The example
+`tests/fixtures/core-feature-costs.json` uses invented costs, not a MEXC fee schedule.
+Model formulas, limits and assumptions: `docs/specs/028-research-cost-sensitivity.md`.

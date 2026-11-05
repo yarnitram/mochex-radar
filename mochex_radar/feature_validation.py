@@ -5,7 +5,7 @@ import hashlib
 import json
 from collections import Counter
 from datetime import datetime, timedelta
-from decimal import Decimal, localcontext
+from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from pathlib import Path
 
 from mochex_radar.futures_feed import Candle
@@ -13,7 +13,81 @@ from mochex_radar.market_features import BTC_ASSET_ID, FEATURE_VERSION, INTERVAL
 from mochex_radar.markets import core_markets
 
 REPORT_VERSION = "core-feature-validation-v1"
+COST_REPORT_VERSION = "core-feature-validation-v2"
 MAX_BYTES = 5_000_000
+COST_FIELDS = ("entry_fee_bps", "exit_fee_bps", "entry_half_spread_bps", "exit_half_spread_bps",
+               "entry_slippage_bps", "exit_slippage_bps", "funding_cost_bps")
+
+
+def _cost_scenarios(scenarios: list[dict] | None) -> list[dict] | None:
+    if scenarios is None:
+        return None
+    if not isinstance(scenarios, list) or not 1 <= len(scenarios) <= 10:
+        raise ValueError("require 1..10 cost scenarios")
+    names = set()
+    for scenario in scenarios:
+        if not isinstance(scenario, dict) or set(scenario) != {"name", *COST_FIELDS}:
+            raise ValueError("all cost fields are required; extra fields forbidden")
+        name = scenario["name"]
+        if not isinstance(name, str) or not 1 <= len(name) <= 40 or name != name.strip() or name in names:
+            raise ValueError("cost scenario names must be bounded and unique")
+        names.add(name)
+        for field in COST_FIELDS:
+            raw = scenario[field]
+            if not isinstance(raw, str) or not 1 <= len(raw) <= 32:
+                raise ValueError("costs require bounded decimal strings")
+            try:
+                value = Decimal(raw)
+            except ArithmeticError as exc:
+                raise ValueError("invalid cost decimal") from exc
+            lower = -1000 if field == "funding_cost_bps" else 0
+            if not value.is_finite() or not lower <= value <= 1000 or value.as_tuple().exponent < -8:
+                raise ValueError("cost value or precision exceeds bounds")
+    return [dict(scenario) for scenario in scenarios]
+
+
+def _cost_estimate(gross: str | None, scenario: dict) -> dict:
+    if gross is None:
+        return {"net_return": None, "cost_drag": None}
+    values = {field: Decimal(scenario[field]) / 10000 for field in COST_FIELDS}
+    entry = 1 + values["entry_half_spread_bps"] + values["entry_slippage_bps"]
+    exit_price = 1 - values["exit_half_spread_bps"] - values["exit_slippage_bps"]
+    exit_value = (1 + Decimal(gross)) * exit_price / entry
+    net = exit_value * (1 - values["exit_fee_bps"]) - 1 - values["entry_fee_bps"] - values["funding_cost_bps"]
+    return {"net_return": str(net), "cost_drag": str(Decimal(gross) - net)}
+
+
+def _cost_summary(rows: list[dict], name: str) -> dict:
+    values = [Decimal(row["cost_estimates"][name]["net_return"]) for row in rows]
+    drag = [Decimal(row["cost_estimates"][name]["cost_drag"]) for row in rows]
+    return {"count": len(values), "mean_net_return": str(sum(values) / len(values)) if values else None,
+            "positive_fraction": str(Decimal(sum(v > 0 for v in values)) / len(values)) if values else None,
+            "mean_cost_drag": str(sum(drag) / len(drag)) if drag else None}
+
+
+def _add_cost_sensitivity(report: dict, scenarios: list[dict]) -> None:
+    for row in report["rows"]:
+        row["cost_estimates"] = {s["name"]: _cost_estimate(row["gross_return"], s) for s in scenarios}
+    splits = {}
+    for split in ("development", "holdout"):
+        rows = [r for r in report["rows"] if r["split"] == split and r["gross_return"] is not None]
+        results = {}
+        for scenario in scenarios:
+            name = scenario["name"]
+            groups = {}
+            for field, states in (("volatility_state", ("compressed", "normal", "expanding")),
+                                  ("structure_state", ("range", "breakout_up", "breakdown"))):
+                groups[field] = {state: _cost_summary([r for r in rows if r["features"]["features"][field] == state], name)
+                                 for state in states}
+            results[name] = {"baseline": _cost_summary(rows, name), "groups": groups}
+        splits[split] = results
+    report["report_version"] = COST_REPORT_VERSION
+    report["cost_sensitivity"] = {"model_version": "long-entry-notional-cost-v1",
+        "assumptions_status": "USER_SUPPLIED_NOT_VERIFIED", "scenarios": scenarios, "splits": splits,
+        "direction": "illustrative_long", "leverage": "1", "funding_basis": "assumed_total_interval_cost_bps"}
+    report["limitations"][0] = (
+        "Cost sensitivity uses assumed long reference prices, fees, adverse half-spread/slippage and total funding cost; "
+        "no observed fills, depth, impact, margin, liquidation or latency simulation; no profitability validation.")
 
 
 def _utc(value: datetime) -> None:
@@ -52,14 +126,17 @@ def _summary(values: list[Decimal]) -> dict:
 
 
 def validation_report(candles: list[Candle], asset_id: str, interval: str,
-                      decisions: list[datetime], holdout_at: datetime, evaluation_at: datetime) -> dict:
+                      decisions: list[datetime], holdout_at: datetime, evaluation_at: datetime,
+                      cost_scenarios: list[dict] | None = None) -> dict:
     """Split descriptive outcomes; future labels never enter feature calculations."""
     with localcontext() as context:
         context.prec = 50
-        return _validation_report(candles, asset_id, interval, decisions, holdout_at, evaluation_at)
+        context.rounding = ROUND_HALF_EVEN
+        return _validation_report(candles, asset_id, interval, decisions, holdout_at, evaluation_at, cost_scenarios)
 
 
-def _validation_report(candles, asset_id, interval, decisions, holdout_at, evaluation_at) -> dict:
+def _validation_report(candles, asset_id, interval, decisions, holdout_at, evaluation_at, cost_scenarios=None) -> dict:
+    scenarios = _cost_scenarios(cost_scenarios)
     if interval not in INTERVALS or asset_id not in {m.asset_id for m in core_markets()}:
         raise ValueError("unsupported market or interval")
     if len(candles) > 10000 or not 1 <= len(decisions) <= 1000:
@@ -73,6 +150,8 @@ def _validation_report(candles, asset_id, interval, decisions, holdout_at, evalu
     canonical = {"candles": [c.to_dict() for c in ordered], "asset_id": asset_id, "interval": interval,
                  "decisions": [t.isoformat() for t in decisions], "holdout_at": holdout_at.isoformat(),
                  "evaluation_at": evaluation_at.isoformat()}
+    if scenarios is not None:
+        canonical["cost_scenarios"] = scenarios
     digest = hashlib.sha256(json.dumps(canonical, sort_keys=True).encode()).hexdigest()
     # First observation known by the evaluation cutoff supplies labels only.
     labels = {}
@@ -110,13 +189,18 @@ def _validation_report(candles, asset_id, interval, decisions, holdout_at, evalu
                                              if r["features"]["features"][field] == state]) for state in states}
         splits[split] = {"baseline": _summary([Decimal(r["gross_return"]) for r in eligible]),
                          "excluded": dict(Counter(r["reason"] for r in population if r["reason"])), "groups": groups}
-    return {"report_version": REPORT_VERSION, "feature_version": FEATURE_VERSION, "dataset_config_sha256": digest,
+    report = {"report_version": REPORT_VERSION, "feature_version": FEATURE_VERSION, "dataset_config_sha256": digest,
             "asset_id": asset_id, "interval": interval, "holdout_at": holdout_at.isoformat(),
             "evaluation_at": evaluation_at.isoformat(), "research_only": True, "signals_enabled": False,
             "execution_simulated": False, "splits": splits, "rows": rows,
             "limitations": ["Gross descriptive returns only; no fees, spread, funding, slippage or execution latency.",
                             "User-supplied universe and holdout; no threshold optimization or statistical alpha validation.",
                             "Overlapping outcomes may be dependent; sample counts are not independent trial counts."]}
+    if scenarios is not None:
+        with localcontext() as context:
+            context.prec = 100
+            _add_cost_sensitivity(report, scenarios)
+    return report
 
 
 def _timestamp(value: str) -> datetime:
@@ -133,7 +217,11 @@ def report_from_bytes(raw: bytes) -> dict:
         raise ValueError("dataset exceeds 5MB")
     data = json.loads(raw)
     expected = {"format_version", "candles", "asset_id", "interval", "decisions", "holdout_at", "evaluation_at"}
-    if not isinstance(data, dict) or set(data) != expected or type(data["format_version"]) is not int or data["format_version"] != 1:
+    if not isinstance(data, dict) or type(data.get("format_version")) is not int or data["format_version"] not in (1, 2):
+        raise ValueError("invalid dataset envelope")
+    if data["format_version"] == 2:
+        expected.add("cost_scenarios")
+    if set(data) != expected or (data["format_version"] == 2 and data["cost_scenarios"] is None):
         raise ValueError("invalid dataset envelope")
     if not isinstance(data["candles"], list) or len(data["candles"]) > 10000:
         raise ValueError("invalid candle array")
@@ -151,7 +239,7 @@ def report_from_bytes(raw: bytes) -> dict:
         raise ValueError("invalid decision array")
     return validation_report(candles, data["asset_id"], data["interval"],
                                [_timestamp(t) for t in data["decisions"]],
-                               _timestamp(data["holdout_at"]), _timestamp(data["evaluation_at"]))
+                               _timestamp(data["holdout_at"]), _timestamp(data["evaluation_at"]), data.get("cost_scenarios"))
 
 
 def main() -> None:

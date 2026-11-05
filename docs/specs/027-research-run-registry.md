@@ -22,3 +22,7 @@ Acceptance: deterministic IDs, byte-preserving roundtrip, duplicate refusal,
 modified/missing artifacts, interrupted bundles, source mismatch, invalid metadata,
 bounded reads and CLI create/verify/replay. Existing validation/export tests and
 full PostgreSQL/frontend CI must continue to pass.
+
+Format-2 datasets with explicit cost scenarios use the same registry workflow.
+Their assumptions participate in dataset/config and run hashes; source-matched
+replay verifies both gross and cost-sensitivity results. Format-1 remains gross-only.
