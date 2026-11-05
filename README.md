@@ -25,7 +25,7 @@ The initial release must not place trades, access exchange accounts, sign wallet
 
 ## Foundation development
 
-Use Python 3.11 or newer. In a virtual environment, install with `python -m pip install -e ".[test]"`, run `python -m pytest`, and start the API with `python -m uvicorn mochex_radar.api:app --reload`. `GET /api/v1/markets/core` reports configured markets only; it does not provide live prices. See `docs/specs/001-foundation-api.md` for the current feature contract.
+Use Python 3.12 or newer. In a virtual environment, install with `python -m pip install -e ".[test]"`, run `python -m pytest`, and start the API with `python -m uvicorn mochex_radar.api:app --reload`. `GET /api/v1/markets/core` reports configured markets only; it does not provide live prices. See `docs/specs/001-foundation-api.md` for the current feature contract.
 
 MEXC USDT futures is the first public reference venue. `GET /api/v1/market-data/SOL_USDT/15m` fetches the newest closed contract candle on demand without an account key. The response is an observation, not a signal. See `docs/specs/002-mexc-futures-candles.md`.
 
@@ -38,3 +38,13 @@ The collector also observes `BTC_USDT` at 15m for context only. After four conse
 ## MEXC WebSocket stream
 
 The Compose stack includes a public futures `streamer` process. It subscribes to the same 15 candle targets, maintains application pings, and persists a candle only after its next window begins. The REST collector continues to reconcile closed windows. Run `python -m mochex_radar.websocket_feed --smoke` to verify one public SOL subscription without database access or writes. See `docs/specs/005-mexc-websocket.md`.
+
+## Cluster Radar and Solana pool context
+
+The preserved Cluster Radar source is included as a versioned package snapshot;
+see `integrations/cluster-radar/README.md` for provenance and update instructions.
+Set `DEX_LOOKUP_ENABLED=true` to enable `GET /api/v1/dex/solana/{mint}/pools`.
+One API worker may attempt up to `DEX_LOOKUP_MAX_REQUESTS` (default 100) lookups
+per process lifetime. Keep it behind trusted internal access. Responses retain
+unknown security status until independent risk evidence is implemented.
+See `docs/specs/007-cluster-integration.md` for limits and remaining scope.
