@@ -125,3 +125,13 @@ PRD-weighted Pump/Dump scores. It makes no provider calls, approves no signal an
 sends no alert. Strict input/provenance requirements and limitations:
 `docs/specs/019-wallet-research-reports.md`. Remaining major work areas:
 `docs/REMAINING-ROADMAP.md`.
+
+## Offline core-feature comparison
+
+`python -m mochex_radar.feature_validation --input tests/fixtures/core-feature-validation.json --output work/core-feature-report.json`
+
+Create the output directory first. The synthetic fixture demonstrates chronological
+development/holdout comparisons and unconditional baselines; it is not live market
+performance. Reports retain unavailable reasons, first-observation cutoffs and
+dataset/config hashes, and refuse to overwrite files. Gross candle returns do not
+simulate execution, costs or profitability. See `docs/specs/025-core-feature-validation.md`.
