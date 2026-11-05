@@ -106,3 +106,37 @@ Funding is a total interval assumption, not a prorated advertised rate. Candle
 prices do not establish order-book mids or fills. This is cost sensitivity, with no
 observed depth, price impact, margin, liquidation, short-fill or latency simulation.
 Independent real-data evaluation and forward paper validation remain necessary.
+
+## Inspect coverage before interpreting results
+
+Run the offline readiness check on the exact exported dataset:
+
+```text
+python -m mochex_radar.validation_readiness --input work/sol-dataset-v1.json --output work/sol-coverage-v1.json
+```
+
+Keep the coverage artifact alongside the dataset/report and record its dataset/config
+hash. The command accepts format 1 and 2, makes no database/provider call, and refuses
+to overwrite output. It diagnoses feature warmup/gaps, closed observations not yet
+retrieved at each decision, missing BTC relative-strength context, independent
+missing/late/pending outcomes and deliberate holdout-boundary exclusions.
+
+`coverage_complete` means all nonpurged decisions have core features, BTC context
+and an outcome, and each split has at least one eligible comparison sample.
+`partial_coverage` means at least one eligible sample exists but some coverage
+requirements are unmet; `insufficient_coverage` means none are eligible. The
+separate both-splits flag shows whether each split has any comparison sample.
+These are data-completeness checks, not minimum statistical sample-size thresholds.
+Missing BTC can leave core comparisons usable while coverage remains partial.
+
+Inventory gap counts cover first-to-last visible candles only. Leading/trailing
+history is not presumed complete. At most 20 gap runs are listed with an explicit
+truncation flag; counts include all internal gaps. Future-close/retrieval observation
+counts may overlap. Identical observations and later revisions cannot inflate unique
+history counts. Repeated outcome windows are disclosed and must not be counted as
+independent trials. Cost scenarios never improve coverage.
+
+Dataset origin remains NOT_VERIFIED and production_ready remains false even with
+complete coverage. Diagnose missing evidence and preserve failures before moving to
+independent evaluation and forward paper tracking; do not relabel synthetic results
+or rewrite retrieval timestamps to pass a coverage check.

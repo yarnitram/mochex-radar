@@ -148,3 +148,8 @@ Optional format-2 inputs add explicit hypothetical fee/spread/slippage/funding
 scenarios to the same comparison and registry commands. The example
 `tests/fixtures/core-feature-costs.json` uses invented costs, not a MEXC fee schedule.
 Model formulas, limits and assumptions: `docs/specs/028-research-cost-sensitivity.md`.
+
+`python -m mochex_radar.validation_readiness --input work/sol-dataset-v1.json --output work/sol-coverage-v1.json`
+checks point-in-time history, gaps, BTC context and outcome coverage before
+interpreting comparisons. Complete coverage does not establish statistical sample
+adequacy, data authenticity or production readiness. See `docs/specs/029-validation-coverage-readiness.md`.
