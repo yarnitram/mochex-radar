@@ -196,7 +196,8 @@ class Runtime:
     def start(self, sha):
         self.compose(sha, "up", "-d", "--no-build", "db", "redis")
         self.compose(sha, "run", "--rm", "initialize")
-        self.compose(sha, "up", "-d", "--no-build", "--wait", "--wait-timeout", "120", *SERVICES)
+        services = SERVICES + (("alert-worker",) if self.environment["COMPOSE_PROFILES"] == "alerts" else ())
+        self.compose(sha, "up", "-d", "--no-build", "--wait", "--wait-timeout", "120", *services)
 
     def verify(self, sha):
         api_port = self.values.get("RADAR_API_PORT", "8000")
@@ -241,6 +242,8 @@ class Runtime:
             if not successful_ci(runs, candidate):
                 return {"status": "waiting_for_successful_ci", "sha": candidate}
             if candidate == current:
+                if self.environment["COMPOSE_PROFILES"] == "alerts":
+                    self.compose(candidate, "up", "-d", "--no-build", "--wait", "--wait-timeout", "120", "alert-worker")
                 self.verify(candidate)
                 return {"status": "already_current", "sha": candidate}
             failed = self.state / "failed.json"

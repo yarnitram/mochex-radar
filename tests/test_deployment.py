@@ -45,6 +45,16 @@ def test_alert_profile_rejects_missing_credentials_when_enabled(tmp_path):
         private_environment(path)
 
 
+def test_alert_profile_is_added_to_runtime_start_services(tmp_path):
+    path = private_env(tmp_path / "private.env")
+    path.write_text(path.read_text() + "RADAR_ALERTS_ENABLED=true\nTELEGRAM_SEND_ENABLED=true\nTELEGRAM_BOT_TOKEN=123456789:AAExampleToken_DoNotUse123\nTELEGRAM_CHAT_ID=8720642900\n")
+    runtime = Runtime(tmp_path / "source", tmp_path / "state", path)
+    calls = []
+    runtime.compose = lambda sha, *args, **kwargs: calls.append(args) or ""
+    runtime.start("a" * 40)
+    assert calls[-1][-1] == "alert-worker"
+
+
 def test_paths_refuse_secrets_state_inside_source_and_unmanaged_directories(tmp_path):
     source = tmp_path / "source"; source.mkdir()
     env = private_env(tmp_path / "private.env")
