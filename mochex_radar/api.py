@@ -22,6 +22,7 @@ from mochex_radar.dex_store import initialize_dex_store, observation_history, st
 from mochex_radar.provider_budget import initialize_budget_store, PersistentDexScreener
 from mochex_radar.dex_worker import recent_scans
 from mochex_radar.dashboard import core_snapshot
+from mochex_radar.alert_store import outbox_status
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -108,6 +109,18 @@ async def dashboard_core():
         return await asyncio.to_thread(core_snapshot, os.environ.get("DATABASE_URL"))
     except psycopg.Error as exc:
         raise HTTPException(status_code=503, detail="stored core observations unavailable") from exc
+
+
+@app.get("/api/v1/alerts/status")
+async def alert_status():
+    dsn = os.environ.get("DATABASE_URL")
+    if not dsn:
+        return {"status": "storage_disabled", "states": {}}
+    try:
+        status = await asyncio.to_thread(outbox_status, dsn)
+    except psycopg.Error as exc:
+        raise HTTPException(status_code=503, detail="alert outbox status unavailable") from exc
+    return {"status": "stored_outbox", **status}
 
 
 @app.get("/api/v1/dex/scans")

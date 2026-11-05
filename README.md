@@ -68,3 +68,13 @@ For local development, start the FastAPI service on port 8000, then run `npm ci`
 and `npm run dev` inside `dashboard` (Node 24). For a local production preview,
 run `npm run build` then `npm start`. Override server-only `RADAR_API_ORIGIN` if
 your API runs elsewhere. See `docs/specs/011-nextjs-dashboard.md`.
+
+## Operational Telegram outbox
+
+Preview with `python -m mochex_radar.alert_worker --enqueue-test --dry-run` after
+configuring a private DATABASE_URL. Actual sending requires both `--send` and
+`TELEGRAM_SEND_ENABLED=true`, plus private bot token and destination configuration.
+The worker uses durable deduplication, cooldowns, expiry and attempt limits.
+Ambiguous delivery is held for review. Market-signal producers are not enabled.
+See `docs/specs/012-telegram-outbox.md` before enabling the optional Compose
+`alerts` profile. `GET /api/v1/alerts/status` reports counts only.

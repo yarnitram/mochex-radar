@@ -75,5 +75,20 @@ services:
         condition: service_healthy
     restart: "on-failure:3"
 
+  alert-worker:
+    profiles: ["alerts"]
+    build: .
+    command: ["python", "-m", "mochex_radar.alert_worker", "--send"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+      TELEGRAM_SEND_ENABLED: ${TELEGRAM_SEND_ENABLED:-false}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      TELEGRAM_DAILY_ATTEMPTS: ${TELEGRAM_DAILY_ATTEMPTS:-100}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "on-failure:3"
+
 volumes:
   postgres_data:
