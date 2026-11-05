@@ -24,11 +24,23 @@ from mochex_radar.dex_worker import recent_scans
 from mochex_radar.dashboard import core_snapshot
 from mochex_radar.alert_store import outbox_status
 from mochex_radar.profile_discovery import recent_polls, discovered_catalog
+from mochex_radar.authority_checks import PersistentAuthorities, authority_history, initialize_authority_store, store_authority
+from cluster_radar.providers.solana_authorities import SolanaAuthorities
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.dex_provider = None
+    app.state.authority_provider = None
     async with httpx.AsyncClient() as client:
+        if os.environ.get("SOLANA_AUTHORITIES_ENABLED", "false").lower() == "true":
+            authority_dsn = os.environ.get("DATABASE_URL")
+            if not authority_dsn:
+                raise ValueError("authority checks require DATABASE_URL")
+            await asyncio.to_thread(initialize_authority_store, authority_dsn)
+            app.state.authority_provider = PersistentAuthorities(
+                SolanaAuthorities(client, max_requests=2**63-1), authority_dsn,
+                int(os.environ.get("SOLANA_AUTHORITY_DAILY_REQUESTS", "100")),
+            )
         if os.environ.get("DEX_LOOKUP_ENABLED", "false").lower() == "true":
             if dsn := os.environ.get("DATABASE_URL"):
                 await asyncio.to_thread(initialize_dex_store, dsn)
@@ -45,6 +57,46 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Mochex Radar", version="0.1.0", lifespan=lifespan)
+
+
+def get_authority_provider(request: Request):
+    provider = getattr(request.app.state, "authority_provider", None)
+    if provider is None:
+        raise HTTPException(status_code=503, detail="Solana authority checks disabled")
+    return provider
+
+
+@app.get("/api/v1/security/solana/{mint}/authorities")
+async def solana_authorities(mint: str, provider: PersistentAuthorities = Depends(get_authority_provider)):
+    try:
+        observation = await provider.check(mint)
+    except BudgetExceeded as exc:
+        raise HTTPException(status_code=429, detail="authority request budget exhausted") from exc
+    except ProviderUnavailable as exc:
+        raise HTTPException(status_code=503, detail="authority evidence unavailable") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="invalid Solana public key") from exc
+    try:
+        await asyncio.to_thread(store_authority, provider.dsn, observation)
+    except (psycopg.Error, ValueError) as exc:
+        raise HTTPException(status_code=503, detail="authority evidence storage unavailable") from exc
+    return {"data_status":"observed", "partial":True, "persisted":True,
+            "evidence":jsonable_encoder(asdict(observation)), "freshness_lifetime_seconds":900}
+
+
+@app.get("/api/v1/security/solana/{mint}/authorities/history")
+async def solana_authority_history(mint: str, as_of: datetime, limit: int = 10):
+    dsn = os.environ.get("DATABASE_URL")
+    if not dsn:
+        raise HTTPException(status_code=503, detail="authority evidence storage disabled")
+    try:
+        history = await asyncio.to_thread(authority_history, dsn, mint, as_of, limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="valid public key, UTC cutoff and limit 1..100 required") from exc
+    except psycopg.Error as exc:
+        raise HTTPException(status_code=503, detail="authority history unavailable") from exc
+    return {"data_status":"stored_partial_evidence", "observations":history,
+            "security_status":"UNKNOWN", "approved_pump_watch":False}
 
 
 def get_dex_provider(request: Request) -> DexScreener | PersistentDexScreener:

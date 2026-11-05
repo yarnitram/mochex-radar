@@ -102,3 +102,12 @@ The dashboard Discovery catalog displays up to 100 newest observed profiles and
 10 recent polls. Mint search and scan-attempt filters apply to the loaded subset.
 It preserves UNKNOWN security and distinguishes observation time from token age.
 See `docs/specs/016-discovery-catalog-dashboard.md`.
+
+## Partial Solana authority evidence
+
+Optional `SOLANA_AUTHORITIES_ENABLED=true` enables read-only original SPL mint and
+freeze authority lookup, backed by mandatory PostgreSQL evidence storage and a
+shared daily request budget. Overall security stays UNKNOWN, including when both
+authorities are disabled. Token-2022 and other security checks remain unevaluated.
+API, history/freshness behavior and public-RPC constraints:
+`docs/specs/017-solana-authority-evidence.md`.
