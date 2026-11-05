@@ -74,13 +74,15 @@ export default function Dashboard() {
     (scan) => category === "all" || scan.categories.includes(category),
   );
   const current = markets?.filter((m) => m.status === "current").length || 0;
-  const sourceLabel = !snapshot
-    ? "Waiting for observations"
-    : snapshot.core.status === "unavailable"
-      ? "Core feed unavailable"
-      : snapshot.core.data.data_status === "storage_disabled"
-        ? "Storage not configured"
-        : "Stored observations";
+  const sourceLabel = failed
+    ? "Snapshot outdated"
+    : !snapshot
+      ? "Waiting for observations"
+      : snapshot.core.status === "unavailable"
+        ? "Core feed unavailable"
+        : snapshot.core.data.data_status === "storage_disabled"
+          ? "Storage not configured"
+          : "Stored observations";
   return (
     <div className="shell">
       <a className="skip" href="#main">
@@ -137,7 +139,7 @@ export default function Dashboard() {
           </button>
         </section>
         <div className="feedline" role="status">
-          <span className={`dot ${current ? "green" : ""}`} />
+          <span className={`dot ${current && !failed ? "green" : ""}`} />
           {sourceLabel}
           <span className="divider">·</span>
           <span>Refreshes every 30 seconds</span>
@@ -157,7 +159,7 @@ export default function Dashboard() {
           <article className="summary">
             <span className="label">CORE COVERAGE</span>
             <div className="big-number">
-              {current}
+              {failed ? "—" : current}
               <small> / 7</small>
             </div>
             <p>Pairs with a current 15m observation</p>
