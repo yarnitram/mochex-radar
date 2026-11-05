@@ -153,3 +153,8 @@ Model formulas, limits and assumptions: `docs/specs/028-research-cost-sensitivit
 checks point-in-time history, gaps, BTC context and outcome coverage before
 interpreting comparisons. Complete coverage does not establish statistical sample
 adequacy, data authenticity or production readiness. See `docs/specs/029-validation-coverage-readiness.md`.
+
+Manual forward tracking is available through `python -m mochex_radar.paper_journal --help`.
+It predeclares future plans and preserves separate capture/outcome snapshots,
+including missed and unavailable observations. No live campaign is started by
+installation. Workflow and limits: `docs/FORWARD-PAPER-TRACKING.md`.

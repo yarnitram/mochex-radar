@@ -211,6 +211,23 @@ def _timestamp(value: str) -> datetime:
     return result
 
 
+def parse_candle_records(records: list[dict]) -> list[Candle]:
+    """Shared wire parser; callers additionally validate identity, OHLCV and cutoffs."""
+    if not isinstance(records, list) or len(records) > 10000:
+        raise ValueError("invalid candle array")
+    candles = []
+    for row in records:
+        row = dict(row)
+        for name in ("open", "high", "low", "close", "volume"):
+            if not isinstance(row[name], str) or len(row[name]) > 80:
+                raise ValueError("bounded decimal strings required")
+            row[name] = Decimal(row[name])
+        for name in ("open_time", "close_time", "retrieved_at"):
+            row[name] = _timestamp(row[name])
+        candles.append(Candle(**row))
+    return candles
+
+
 def report_from_bytes(raw: bytes) -> dict:
     """Shared bounded dataset parser for the CLI and immutable research bundles."""
     if len(raw) > MAX_BYTES:
@@ -223,18 +240,7 @@ def report_from_bytes(raw: bytes) -> dict:
         expected.add("cost_scenarios")
     if set(data) != expected or (data["format_version"] == 2 and data["cost_scenarios"] is None):
         raise ValueError("invalid dataset envelope")
-    if not isinstance(data["candles"], list) or len(data["candles"]) > 10000:
-        raise ValueError("invalid candle array")
-    candles = []
-    for row in data["candles"]:
-        row = dict(row)
-        for name in ("open", "high", "low", "close", "volume"):
-            if not isinstance(row[name], str) or len(row[name]) > 80:
-                raise ValueError("bounded decimal strings required")
-            row[name] = Decimal(row[name])
-        for name in ("open_time", "close_time", "retrieved_at"):
-            row[name] = _timestamp(row[name])
-        candles.append(Candle(**row))
+    candles = parse_candle_records(data["candles"])
     if not isinstance(data["decisions"], list) or len(data["decisions"]) > 1000:
         raise ValueError("invalid decision array")
     return validation_report(candles, data["asset_id"], data["interval"],
