@@ -13,7 +13,7 @@
       "path": "cluster_radar/discovery/__init__.py"
     },
     {
-      "sha256": "995371a2e6d9b3cfeb822a908b8a3faeb52966d206c6180263886ebd91f3a766",
+      "sha256": "6d619231fb4777de27bf39b6e70775a9aaac8224079e86420267aa5b32da8b4d",
       "path": "cluster_radar/discovery/identity.py"
     },
     {
@@ -21,11 +21,11 @@
       "path": "cluster_radar/intelligence/__init__.py"
     },
     {
-      "sha256": "0fe4c0b12b90c125618648954c0cdb4bab4eae66e1da7f7f848a4a4c9219b369",
+      "sha256": "e3d8bdce803be7ef2c9737e4cb2ca4e5268d7f95e5803d4b6a85bdd94f0295c8",
       "path": "cluster_radar/intelligence/funding.py"
     },
     {
-      "sha256": "dac614bef6a28a9b4a13c1bb0638cff9b6aaee66ec92cc7d4cadf21ca6f244e1",
+      "sha256": "f30651491fa911a06c983cfe6911ffd38bf0f13dc3689020c7f856a76985127a",
       "path": "cluster_radar/main.py"
     },
     {
@@ -37,7 +37,7 @@
       "path": "cluster_radar/providers/__init__.py"
     },
     {
-      "sha256": "499d0c44545faa67830591d5b8c14874a69386d4151845f403f0ea2b8abcd581",
+      "sha256": "3d11eff4928b5592ad0f2b53250e367a668bf4b8ecca56a88b2870fe501cd97f",
       "path": "cluster_radar/providers/dexscreener.py"
     },
     {
@@ -45,7 +45,7 @@
       "path": "cluster_radar/security/__init__.py"
     },
     {
-      "sha256": "17aebefbb6c338ecc830e471fb1d7165ac7ce0dc48744530daa215dbbc10b765",
+      "sha256": "2f39a5b7ec55d4f8bd8f4fd8f6d7d627d9e39fbdca441738b54a244ef2b8b3a2",
       "path": "cluster_radar/security/gate.py"
     },
     {
@@ -61,5 +61,6 @@
       "path": "cluster_radar/storage/__init__.py"
     }
   ],
-  "upstream_commit": "5c317e9cadb148885e4271e926a4be7eb740b927"
+  "upstream_commit": "5c317e9cadb148885e4271e926a4be7eb740b927",
+  "hash_encoding": "UTF-8 source bytes with CRLF normalized to LF"
 }
