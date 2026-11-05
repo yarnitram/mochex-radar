@@ -11,3 +11,7 @@ coverage/
 *.log
 *.egg-info/
 .pytest_cache/
+*.tsbuildinfo
+test-results/
+playwright-report/
+dashboard/next-env.d.ts

@@ -59,3 +59,12 @@ schedule, using the shared durable request budget. Populate `config/dex-watchlis
 with explicit categories and provenance before enabling it. Scan audit records are
 available at `GET /api/v1/dex/scans`. Setup and limits:
 `docs/specs/010-dex-watchlist-worker.md`.
+
+## Dashboard
+
+Compose includes the Next.js dashboard at `http://localhost:3000`. It reads stored
+observations, shows BTC context and scan history, and refreshes every 30 seconds.
+For local development, start the FastAPI service on port 8000, then run `npm ci`
+and `npm run dev` inside `dashboard` (Node 24). For a local production preview,
+run `npm run build` then `npm start`. Override server-only `RADAR_API_ORIGIN` if
+your API runs elsewhere. See `docs/specs/011-nextjs-dashboard.md`.

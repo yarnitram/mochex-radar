@@ -28,6 +28,16 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  dashboard:
+    build: ./dashboard
+    environment:
+      RADAR_API_ORIGIN: http://api:8000
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+
   collector:
     build: .
     command: ["python", "-m", "mochex_radar.collector"]

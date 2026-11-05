@@ -21,6 +21,7 @@ from mochex_radar.storage import latest_cycle, recent_btc_candles
 from mochex_radar.dex_store import initialize_dex_store, observation_history, store_observations
 from mochex_radar.provider_budget import initialize_budget_store, PersistentDexScreener
 from mochex_radar.dex_worker import recent_scans
+from mochex_radar.dashboard import core_snapshot
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -99,6 +100,14 @@ async def get_http_client():
 @app.get("/health/live")
 def live() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/api/v1/dashboard/core")
+async def dashboard_core():
+    try:
+        return await asyncio.to_thread(core_snapshot, os.environ.get("DATABASE_URL"))
+    except psycopg.Error as exc:
+        raise HTTPException(status_code=503, detail="stored core observations unavailable") from exc
 
 
 @app.get("/api/v1/dex/scans")
