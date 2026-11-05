@@ -1,6 +1,6 @@
 # Mochex Radar — Remaining product roadmap
 
-Eight major work areas remain. Completed development increments are tracked
+Eight product work areas remain tracked below. A private Proxmox research pilot now has local deployment tooling and recovery checks; this is separate from completing every product area. Completed development increments are tracked
 separately in the project handoff. Each group below can take several increments;
 provider validation may change the scope estimate and sequencing.
 
@@ -26,15 +26,15 @@ provider validation may change the scope estimate and sequencing.
 5. **Outcome backtesting and forward paper validation.** Existing replay foundations
    now have a local dataset/run registry and descriptive baseline/holdout comparisons, with explicit hypothetical cost sensitivity and point-in-time coverage readiness diagnostics and a manual predeclared forward observation journal; still need broader labels, metrics, independent real-data evidence, observed depth/impact modeling and forward-paper validation. Exit: no future knowledge/ingestion leaks, universe
    bias is disclosed, reproducible reports include failed cases and paper feasibility.
-6. **Redis live state and coordination.** Add ephemeral live snapshots/queues/cache
+6. **Redis live state and coordination — partial.** Provisional live snapshot publication/API, atomic ordering, TTL, stale guards and cache-outage tests are implemented. Durable paper coordination uses shared exclusive journal writes. Broader queues/cache
    and controlled worker coordination while PostgreSQL retains durable evidence.
    Exit: restart, duplicate work, stale cache and Redis-outage tests pass without
    presenting stale data as current or losing durable outbox/evidence records.
-7. **Operational hardening.** Complete access control, secrets management, readiness,
+7. **Operational hardening — pilot baseline implemented.** Loopback access/API token, private configuration, readiness/bootstrap, pinned builds and isolated backup/restore/restart tests are implemented. Remaining work includes broader access control, metrics/provider-cost accounting,
    metrics/provider-cost accounting, pinned dependencies/images, migrations and
    tested backup/restore. Exit: full stack tests and recovery runbook pass, logs
    redact credentials, and public access is configured deliberately.
-8. **Proxmox deployment.** Verify host/guest IDs, source and backup paths; deploy
+8. **Proxmox deployment — next external gate.** Local preflight, verified-commit update/recovery and timer templates are prepared. Verify actual host/guest IDs, source and backup paths; deploy
    the tested stack to a dedicated guest with restricted access. Add controlled
    Git fast-forward updates of verified commits, health checks and rollback.
    Exit: reboot/recovery, update failure, backup restore and external dependencies

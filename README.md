@@ -171,3 +171,8 @@ degraded. Set RADAR_API_TOKEN privately for API access; the dashboard forwards i
 server-side. Both host ports remain loopback-only. Runtime dependencies/images are
 hash/digest pinned. `python scripts/stack_smoke.py` builds an isolated disposable
 stack and tests bootstrap/auth/read-only runtime/cache loss without provider workers.
+
+Proxmox pilot handoff and verified Git update/backup/rollback tooling:
+`docs/PROXMOX-PILOT.md`. Guest identity, paths, private credentials, reboot/restore
+and off-guest backups must be verified before deployment/timer installation.
+The full product roadmap remains separate from this private data-collection pilot.

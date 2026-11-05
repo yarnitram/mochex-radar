@@ -1,0 +1,15 @@
+# Template: install only after guest identity, paths and manual deployment are verified.
+[Unit]
+Description=Mochex Radar verified Git update
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=mochex
+WorkingDirectory=/srv/mochex-radar/source
+EnvironmentFile=/etc/mochex-radar/runtime.env
+UMask=0077
+ExecStart=/usr/bin/python3 /srv/mochex-radar/source/scripts/deployment.py update --source /srv/mochex-radar/source --state /var/lib/mochex-radar --env-file /etc/mochex-radar/runtime.env --apply
+TimeoutStartSec=900

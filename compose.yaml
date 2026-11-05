@@ -176,7 +176,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
     volumes:
-      - ./work/paper-plans:/research
+      - ${PAPER_JOURNAL_PATH:-./work/paper-plans}:/research
     depends_on:
       initialize:
         condition: service_completed_successfully

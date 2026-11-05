@@ -1,0 +1,12 @@
+[Unit]
+Description=Check Mochex Radar verified Git updates hourly
+
+[Timer]
+OnBootSec=10min
+OnCalendar=hourly
+RandomizedDelaySec=5min
+Persistent=true
+Unit=mochex-radar-update.service
+
+[Install]
+WantedBy=timers.target
