@@ -9,7 +9,7 @@ The user's primary venue is MEXC USDT futures. This phase reads public contract 
 ## Contract
 
 - `GET /api/v1/market-data/{symbol}/{interval}` accepts only the seven configured contract IDs and `15m` or `1h`.
-- Read `GET https://contract.mexc.com/api/v1/contract/kline/{symbol}` with `Min15` or `Min60`, a bounded recent start/end window, and a five-second timeout.
+- Read `GET https://api.mexc.com/api/v1/contract/kline/{symbol}` with `Min15` or `Min60`, a bounded recent start/end window, and a five-second timeout. MEXC's old `contract.mexc.com` REST host was retired in January 2026; this is separate from the Futures WebSocket endpoint.
 - Parse aligned `time`, `open`, `high`, `low`, `close`, and `vol` arrays. Select the newest fully closed bar; never present an open bar as final.
 - Validate timestamps, finite positive and internally consistent OHLC, nonnegative volume, and response success. A latest bar older than two intervals is unavailable.
 - Return venue-scoped identity, source, UTC open/close/retrieval times, and decimal fields as strings.
