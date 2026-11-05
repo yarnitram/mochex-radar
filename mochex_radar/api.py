@@ -17,7 +17,8 @@ from mochex_radar.futures_feed import INTERVALS, FeedUnavailable, fetch_latest_c
 from mochex_radar.btc_context import classify
 
 from mochex_radar.markets import core_markets
-from mochex_radar.storage import latest_cycle, recent_btc_candles
+from mochex_radar.storage import latest_cycle, recent_btc_candles, recent_candles
+from mochex_radar.feature_snapshot import core_feature_snapshot
 from mochex_radar.dex_store import initialize_dex_store, observation_history, store_observations
 from mochex_radar.provider_budget import initialize_budget_store, PersistentDexScreener
 from mochex_radar.dex_worker import recent_scans
@@ -175,6 +176,18 @@ async def dashboard_core():
         return await asyncio.to_thread(core_snapshot, os.environ.get("DATABASE_URL"))
     except psycopg.Error as exc:
         raise HTTPException(status_code=503, detail="stored core observations unavailable") from exc
+
+
+@app.get("/api/v1/features/core")
+async def core_features(interval: str = "15m"):
+    if interval not in INTERVALS:
+        raise HTTPException(status_code=422, detail="interval must be 15m or 1h")
+    dsn = os.environ.get("DATABASE_URL")
+    load = (lambda market_id, iv, as_of, limit: recent_candles(dsn, market_id, iv, as_of, limit)) if dsn else None
+    try:
+        return await asyncio.to_thread(core_feature_snapshot, load, interval)
+    except psycopg.Error as exc:
+        raise HTTPException(status_code=503, detail="stored core features unavailable") from exc
 
 
 @app.get("/api/v1/alerts/status")

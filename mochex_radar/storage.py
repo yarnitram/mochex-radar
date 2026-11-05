@@ -114,3 +114,20 @@ def store_stream_candle(dsn: str, candle: Candle) -> bool:
              candle.volume, candle.source),
         )
     return cursor.rowcount == 1
+
+def recent_candles(dsn: str, market_id: str, interval: str, as_of: datetime, limit: int = 21,
+                   venue: str = "mexc-usdt-futures") -> list[Candle]:
+    """Stored candles closed and retrieved at or before as_of, oldest first."""
+    if not 1 <= limit <= 100:
+        raise ValueError("limit must be 1..100")
+    with psycopg.connect(dsn, connect_timeout=5) as conn:
+        rows = conn.execute(
+            """SELECT open_time, close_time, retrieved_at, open_price, high_price,
+                      low_price, close_price, volume, source
+               FROM market_candles
+               WHERE venue = %s AND market_id = %s AND interval = %s
+                 AND close_time <= %s AND retrieved_at <= %s
+               ORDER BY open_time DESC LIMIT %s""",
+            (venue, market_id, interval, as_of, as_of, limit),
+        ).fetchall()
+    return [Candle(f"cex:{venue}:{market_id}", interval, *row) for row in reversed(rows)]
