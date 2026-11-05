@@ -15,7 +15,7 @@ provider validation may change the scope estimate and sequencing.
    holder/controller concentration and independently verified provider findings.
    Exit: supported risk checks are complete and explainable; unsupported/missing
    checks stay UNKNOWN; no vendor score alone becomes a universal safety verdict.
-3. **Core market features and scoring — in progress.** Stored point-in-time calculations, API and bounded manual backfill are implemented; dashboard is complete. Offline split outcome/baseline reporting is implemented; real-data evidence and threshold validation remain. Expand stored history and verified MEXC
+3. **Core market features and scoring — in progress.** Stored point-in-time calculations, API and bounded manual backfill are implemented; dashboard is complete. Offline split outcome/baseline reporting is implemented; read-only stored-dataset export and runbook added; real-data evidence and threshold validation remain. Expand stored history and verified MEXC
    futures feeds as needed for volatility, volume, relative strength, structure and
    BTC context. Exit: seven instruments have validated identities, required lookbacks,
    reproducible feature versions, stale/gap guards and replayed baseline comparisons.

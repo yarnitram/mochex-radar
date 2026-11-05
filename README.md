@@ -135,3 +135,7 @@ development/holdout comparisons and unconditional baselines; it is not live mark
 performance. Reports retain unavailable reasons, first-observation cutoffs and
 dataset/config hashes, and refuse to overwrite files. Gross candle returns do not
 simulate execution, costs or profitability. See `docs/specs/025-core-feature-validation.md`.
+
+For actual stored observations, the manual `mochex_radar.validation_export` command
+creates an input dataset without calling the exchange or changing the database.
+Runbook, prerequisites and timestamp limitations: `docs/REAL-DATA-VALIDATION.md`.
