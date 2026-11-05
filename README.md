@@ -97,3 +97,8 @@ one poll/hour, 24 profile requests/day and three deeper candidates per poll.
 The pool budget is shared with manual/curated lookups. Candidates stay unclassified
 with UNKNOWN security. Profile appearance does not prove token age or quality.
 Read-only poll/catalog APIs and coverage limits: `docs/specs/015-profile-discovery.md`.
+
+The dashboard Discovery catalog displays up to 100 newest observed profiles and
+10 recent polls. Mint search and scan-attempt filters apply to the loaded subset.
+It preserves UNKNOWN security and distinguishes observation time from token age.
+See `docs/specs/016-discovery-catalog-dashboard.md`.

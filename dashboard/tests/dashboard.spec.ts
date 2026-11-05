@@ -1,5 +1,8 @@
 import { test, expect } from "@playwright/test";
+import { catalog, polls } from "./discovery-fixture.mjs";
 const snapshot = {
+  catalog: { status: "available", data: catalog },
+  profilePolls: { status: "available", data: polls },
   fetched_at: "2026-01-01T12:00:00Z",
   outbox: {
     status: "available",
@@ -123,16 +126,24 @@ test("mobile view remains within viewport and unavailable services are explicit"
       json: {
         fetched_at: snapshot.fetched_at,
         ...Object.fromEntries(
-          ["core", "btc", "collector", "scans", "outbox"].map((key) => [
-            key,
-            { status: "unavailable", data: null },
-          ]),
+          [
+            "core",
+            "btc",
+            "collector",
+            "scans",
+            "outbox",
+            "catalog",
+            "profilePolls",
+          ].map((key) => [key, { status: "unavailable", data: null }]),
         ),
       },
     }),
   );
   await page.goto("/");
   await expect(page.getByText("Core feed unavailable")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Discovery catalog unavailable" }),
+  ).toBeVisible();
   await expect(
     page.locator("#alerts").getByText("unavailable", { exact: true }),
   ).toBeVisible();
@@ -228,5 +239,113 @@ test("alert service failure leaves core observations usable", async ({
   await expect(page.locator("#core").getByRole("row")).toHaveCount(8);
   await expect(
     page.locator("#core").getByText("stale", { exact: true }),
+  ).toBeVisible();
+});
+
+test("discovery catalog filters case-sensitive mint identities and attempted scans", async ({
+  page,
+}) => {
+  await page.route("**/api/dashboard", (route) =>
+    route.fulfill({ json: snapshot }),
+  );
+  await page.goto("/");
+  const panel = page.locator("#discovery");
+  await expect(panel.getByText("A".repeat(32), { exact: true })).toBeVisible();
+  await expect(panel.getByText("B".repeat(32), { exact: true })).toBeVisible();
+  await expect(
+    panel.getByText("security is UNKNOWN", { exact: false }),
+  ).toBeVisible();
+  const history = panel.getByRole("table").nth(1);
+  await expect(
+    history.getByRole("row").nth(1).getByRole("cell").nth(2),
+  ).toHaveText("0");
+  await expect(
+    history.getByRole("row").nth(2).getByRole("cell").nth(2),
+  ).toHaveText("—");
+  await panel.getByRole("button", { name: "No attempt", exact: true }).click();
+  await expect(panel.getByText("B".repeat(32), { exact: true })).toHaveCount(0);
+  await panel
+    .getByRole("button", { name: "Attempt recorded", exact: true })
+    .click();
+  await expect(panel.getByText("B".repeat(32), { exact: true })).toBeVisible();
+  await panel
+    .getByRole("searchbox", { name: "Search observed mint" })
+    .fill("b".repeat(32));
+  await expect(
+    panel.getByRole("heading", { name: "No matching loaded records" }),
+  ).toBeVisible();
+  await panel.getByRole("searchbox").fill("B".repeat(32));
+  await expect(panel.getByText("B".repeat(32), { exact: true })).toBeVisible();
+  await panel.screenshot({ path: "test-results/discovery-catalog.png" });
+});
+
+test("catalog outage does not hide poll history and retained data is marked outdated", async ({
+  page,
+}) => {
+  let outage = false;
+  let fail = false;
+  await page.route("**/api/dashboard", (route) =>
+    fail
+      ? route.fulfill({ status: 503 })
+      : route.fulfill({
+          json: outage
+            ? { ...snapshot, catalog: { status: "unavailable", data: null } }
+            : snapshot,
+        }),
+  );
+  await page.goto("/");
+  const panel = page.locator("#discovery");
+  await expect(panel.getByText("2 loaded", { exact: true })).toBeVisible();
+  fail = true;
+  await page.getByRole("button", { name: "Refresh data" }).click();
+  await expect(panel.getByText("outdated", { exact: true })).toBeVisible();
+  await expect(panel.getByText("A".repeat(32), { exact: true })).toBeVisible();
+  fail = false;
+  outage = true;
+  await page.getByRole("button", { name: "Refresh data" }).click();
+  await expect(
+    panel.getByRole("heading", { name: "Discovery catalog unavailable" }),
+  ).toBeVisible();
+  await expect(
+    panel.getByText("provider error", { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator("#core").getByRole("row")).toHaveCount(8);
+});
+
+test("disabled discovery storage differs from an empty observed catalog", async ({
+  page,
+}) => {
+  let empty = false;
+  await page.route("**/api/dashboard", (route) =>
+    route.fulfill({
+      json: {
+        ...snapshot,
+        catalog: {
+          status: "available",
+          data: empty
+            ? { ...catalog, mints: [] }
+            : { status: "storage_disabled", mints: [] },
+        },
+        profilePolls: {
+          status: "available",
+          data: empty
+            ? { ...polls, polls: [] }
+            : { status: "storage_disabled", polls: [] },
+        },
+      },
+    }),
+  );
+  await page.goto("/");
+  const panel = page.locator("#discovery");
+  await expect(
+    panel.getByRole("heading", { name: "Discovery storage is not configured" }),
+  ).toBeVisible();
+  empty = true;
+  await page.getByRole("button", { name: "Refresh data" }).click();
+  await expect(
+    panel.getByRole("heading", { name: "No profiles observed yet" }),
+  ).toBeVisible();
+  await expect(
+    panel.getByRole("heading", { name: "No discovery polls recorded" }),
   ).toBeVisible();
 });

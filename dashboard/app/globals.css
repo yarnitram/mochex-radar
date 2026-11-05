@@ -7,6 +7,45 @@
   --text: #e4edf3;
   --green: #9ce8b1;
 }
+.discovery-note {
+  padding: 16px 22px 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.8;
+  margin: 0;
+}
+.discovery-controls {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px 22px;
+  flex-wrap: wrap;
+}
+.discovery-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 10px;
+  max-width: 100%;
+}
+.discovery-controls input {
+  font:
+    12px Arial,
+    sans-serif;
+  background: #0c141c;
+  border: 1px solid #394b59;
+  border-radius: 4px;
+  padding: 9px 12px;
+  color: var(--text);
+  width: 290px;
+  max-width: 100%;
+}
+.discovery-controls input:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
 .alert-grid {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));

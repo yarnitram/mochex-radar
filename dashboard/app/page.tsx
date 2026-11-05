@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Snapshot } from "@/lib/contracts";
+import DiscoveryPanel from "./discovery-panel";
 
 const PAIRS = ["SOL", "XRP", "DOGE", "LINK", "SUI", "AVAX", "ADA"];
 const ALERT_STATES = [
@@ -121,6 +122,9 @@ export default function Dashboard() {
           </a>
           <a href="#alerts">
             <span>◇</span> Alert delivery
+          </a>
+          <a href="#discovery">
+            <span>⊙</span> Discovery catalog
           </a>
         </nav>
         <div className="sidebar-bottom">
@@ -383,6 +387,7 @@ export default function Dashboard() {
             send or retry messages.
           </div>
         </section>
+        <DiscoveryPanel snapshot={snapshot} outdated={failed} />
         <section className="panel" id="dex">
           <div className="panel-heading">
             <div>
