@@ -2,7 +2,7 @@
 
 The `cluster_radar/` package is a versioned source snapshot of the separately
 preserved project at `C:\Users\Samjie\ProjectCenter\ClusterRadar`, upstream commit
-`5c317e9cadb148885e4271e926a4be7eb740b927`. The original project and its Git history
+`737b5ae74ba895936ca272863af31a3166200d48`. The original project and its Git history
 remain independent. Its PRD is preserved verbatim in `ORIGINAL-PRD.md`.
 Upstream declares proprietary/internal usage; retain that restriction.
 
@@ -12,7 +12,7 @@ upstream changes, copy only tracked source and tests, regenerate hashes, run bot
 test suites, and commit the reviewed snapshot. Never copy `.env`, virtual environments,
 caches, or `.git`. Changes to provider primitives should originate upstream.
 
-The integrated slice exposes public Solana pool context, security gating and
+The integrated slice exposes public Solana pool context, a bounded latest-profile feed, security gating and
 funding evidence primitives. It does not implement the full original PRD.
 Future provider entitlements, wallet history, alerting, and independent Pump/Dump
 signals remain open milestones.

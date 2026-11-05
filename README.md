@@ -88,3 +88,12 @@ Dashboard Alert delivery shows stored operational-notice state counts, including
 uncertain deliveries held for review. It does not send or retry messages and does
 not assert worker availability. Disabled/unavailable storage remains explicit.
 See `docs/specs/014-alert-health-dashboard.md`.
+
+## Solana profile discovery
+
+Optional `docker compose --profile discovery up --build -d` observes the public
+DEX Screener latest-profile window and selects bounded pool scans. Defaults are
+one poll/hour, 24 profile requests/day and three deeper candidates per poll.
+The pool budget is shared with manual/curated lookups. Candidates stay unclassified
+with UNKNOWN security. Profile appearance does not prove token age or quality.
+Read-only poll/catalog APIs and coverage limits: `docs/specs/015-profile-discovery.md`.

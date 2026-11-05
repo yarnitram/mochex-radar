@@ -23,6 +23,7 @@ from mochex_radar.provider_budget import initialize_budget_store, PersistentDexS
 from mochex_radar.dex_worker import recent_scans
 from mochex_radar.dashboard import core_snapshot
 from mochex_radar.alert_store import outbox_status
+from mochex_radar.profile_discovery import recent_polls, discovered_catalog
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -121,6 +122,35 @@ async def alert_status():
     except psycopg.Error as exc:
         raise HTTPException(status_code=503, detail="alert outbox status unavailable") from exc
     return {"status": "stored_outbox", **status}
+
+
+@app.get("/api/v1/discovery/profiles/polls")
+async def profile_polls(limit: int = 100):
+    dsn = os.environ.get("DATABASE_URL")
+    if not dsn:
+        return {"status": "storage_disabled", "polls": []}
+    try:
+        polls = await asyncio.to_thread(recent_polls, dsn, limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="limit must be 1..1000") from exc
+    except psycopg.Error as exc:
+        raise HTTPException(status_code=503, detail="profile poll history unavailable") from exc
+    return {"status": "stored_polls", "polls": polls, "coverage": "profile_window_only"}
+
+
+@app.get("/api/v1/discovery/profiles/mints")
+async def profile_mints(limit: int = 100, offset: int = 0):
+    dsn = os.environ.get("DATABASE_URL")
+    if not dsn:
+        return {"status": "storage_disabled", "mints": []}
+    try:
+        mints = await asyncio.to_thread(discovered_catalog, dsn, limit, offset)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="limit 1..1000 and offset 0..10000 required") from exc
+    except psycopg.Error as exc:
+        raise HTTPException(status_code=503, detail="discovered mint catalog unavailable") from exc
+    return {"status": "current_catalog", "mints": mints, "coverage": "profile_window_only",
+            "category": "unclassified", "security_status": "UNKNOWN", "approved_pump_watch": False}
 
 
 @app.get("/api/v1/dex/scans")

@@ -1,0 +1,5 @@
+[
+  {"chainId":"solana","tokenAddress":"So11111111111111111111111111111111111111112","description":"Synthetic fixture, not a category label"},
+  {"chainId":"ethereum","tokenAddress":"0x0000000000000000000000000000000000000000"},
+  {"chainId":"solana","tokenAddress":"So11111111111111111111111111111111111111112"}
+]

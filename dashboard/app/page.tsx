@@ -387,7 +387,7 @@ export default function Dashboard() {
           <div className="panel-heading">
             <div>
               <h2>DEX radar</h2>
-              <p>Configured Solana mints · Scan evidence</p>
+              <p>Solana mints · Scan evidence</p>
             </div>
             <div className="filters" role="group" aria-label="DEX category">
               {["all", "meme", "ai"].map((item) => (
@@ -445,14 +445,15 @@ export default function Dashboard() {
               </h3>
               <p>
                 {category === "all"
-                  ? "Scans will appear here once a configured watchlist has been scanned."
+                  ? "Scans will appear here once a watchlist or discovery candidate has been scanned."
                   : `No recorded scans tagged ${category === "ai" ? "AI" : "Meme"}.`}
               </p>
             </div>
           )}
           <div className="panel-foot">
-            Categories come from the configured watchlist. Security checks and
-            Pump / Dump signal evaluation are not yet available.
+            Watchlists supply category labels; profile-discovered mints remain
+            unclassified. Security checks and Pump / Dump signal evaluation are
+            not yet available.
           </div>
         </section>
         <footer>

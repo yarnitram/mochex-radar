@@ -91,5 +91,20 @@ services:
         condition: service_healthy
     restart: "on-failure:3"
 
+  profile-discovery:
+    profiles: ["discovery"]
+    build: .
+    command: ["python", "-m", "mochex_radar.profile_discovery"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+      PROFILE_POLL_SECONDS: ${PROFILE_POLL_SECONDS:-3600}
+      PROFILE_DAILY_REQUESTS: ${PROFILE_DAILY_REQUESTS:-24}
+      PROFILE_MAX_POOL_SCANS: ${PROFILE_MAX_POOL_SCANS:-3}
+      DEX_LOOKUP_DAILY_REQUESTS: ${DEX_LOOKUP_DAILY_REQUESTS:-100}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "on-failure:3"
+
 volumes:
   postgres_data:

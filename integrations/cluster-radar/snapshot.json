@@ -1,66 +1,70 @@
 {
   "files": [
     {
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "path": "cluster_radar/__init__.py"
+      "path": "cluster_radar/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "path": "cluster_radar/backtest/__init__.py"
+      "path": "cluster_radar/backtest/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "path": "cluster_radar/discovery/__init__.py"
+      "path": "cluster_radar/discovery/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
-      "sha256": "6d619231fb4777de27bf39b6e70775a9aaac8224079e86420267aa5b32da8b4d",
-      "path": "cluster_radar/discovery/identity.py"
+      "path": "cluster_radar/discovery/identity.py",
+      "sha256": "6d619231fb4777de27bf39b6e70775a9aaac8224079e86420267aa5b32da8b4d"
     },
     {
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "path": "cluster_radar/intelligence/__init__.py"
+      "path": "cluster_radar/intelligence/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
-      "sha256": "e3d8bdce803be7ef2c9737e4cb2ca4e5268d7f95e5803d4b6a85bdd94f0295c8",
-      "path": "cluster_radar/intelligence/funding.py"
+      "path": "cluster_radar/intelligence/funding.py",
+      "sha256": "e3d8bdce803be7ef2c9737e4cb2ca4e5268d7f95e5803d4b6a85bdd94f0295c8"
     },
     {
-      "sha256": "f30651491fa911a06c983cfe6911ffd38bf0f13dc3689020c7f856a76985127a",
-      "path": "cluster_radar/main.py"
+      "path": "cluster_radar/main.py",
+      "sha256": "f30651491fa911a06c983cfe6911ffd38bf0f13dc3689020c7f856a76985127a"
     },
     {
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "path": "cluster_radar/notifications/__init__.py"
+      "path": "cluster_radar/notifications/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "path": "cluster_radar/providers/__init__.py"
+      "path": "cluster_radar/providers/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
-      "sha256": "3d11eff4928b5592ad0f2b53250e367a668bf4b8ecca56a88b2870fe501cd97f",
-      "path": "cluster_radar/providers/dexscreener.py"
+      "path": "cluster_radar/providers/dexscreener.py",
+      "sha256": "3d11eff4928b5592ad0f2b53250e367a668bf4b8ecca56a88b2870fe501cd97f"
     },
     {
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "path": "cluster_radar/security/__init__.py"
+      "path": "cluster_radar/providers/profiles.py",
+      "sha256": "02b8b1a227ff8e183fff89311fdaa481849b89026ff05c6dd5f82dc5ac7ffb98"
     },
     {
-      "sha256": "2f39a5b7ec55d4f8bd8f4fd8f6d7d627d9e39fbdca441738b54a244ef2b8b3a2",
-      "path": "cluster_radar/security/gate.py"
+      "path": "cluster_radar/security/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "path": "cluster_radar/signals/__init__.py"
+      "path": "cluster_radar/security/gate.py",
+      "sha256": "2f39a5b7ec55d4f8bd8f4fd8f6d7d627d9e39fbdca441738b54a244ef2b8b3a2"
     },
     {
-      "sha256": "cfbf14b1194b46e0585a2ac0f25a30146c0ba44e644237a52482e3837b918f70",
-      "path": "cluster_radar/signals/rules.py"
+      "path": "cluster_radar/signals/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "path": "cluster_radar/storage/__init__.py"
+      "path": "cluster_radar/signals/rules.py",
+      "sha256": "cfbf14b1194b46e0585a2ac0f25a30146c0ba44e644237a52482e3837b918f70"
+    },
+    {
+      "path": "cluster_radar/storage/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   ],
-  "upstream_commit": "5c317e9cadb148885e4271e926a4be7eb740b927",
+  "upstream_commit": "737b5ae74ba895936ca272863af31a3166200d48",
   "hash_encoding": "UTF-8 source bytes with CRLF normalized to LF"
 }

@@ -24,14 +24,14 @@ def initialize_budget_store(dsn: str) -> None:
         conn.execute(SCHEMA)
 
 
-def reserve_request(dsn: str, daily_limit: int, *, provider: str = PROVIDER) -> float:
+def reserve_request(dsn: str, daily_limit: int, *, provider: str = PROVIDER, spacing_seconds: float = 0.25) -> float:
     """Return zero when reserved, or delay before retry; exhaustion raises.
 
     Lock one provider row to serialize processes. Failed or cancelled requests
     retain the reservation. Database clock defines UTC day and spacing.
     """
-    if daily_limit < 1:
-        raise ValueError("daily_limit must be positive")
+    if daily_limit < 1 or not 0.25 <= spacing_seconds <= 3600:
+        raise ValueError("positive daily limit and spacing 0.25..3600 required")
     with psycopg.connect(dsn, connect_timeout=5) as conn:
         conn.execute("INSERT INTO provider_request_budgets (provider) VALUES (%s) ON CONFLICT DO NOTHING",
                      (provider,))
@@ -50,8 +50,8 @@ def reserve_request(dsn: str, daily_limit: int, *, provider: str = PROVIDER) -> 
             return delay
         conn.execute(
             """UPDATE provider_request_budgets SET budget_day=%s, used=%s,
-            next_request_at=%s::timestamptz + interval '250 milliseconds' WHERE provider=%s""",
-            (today, used + 1, now, provider),
+            next_request_at=%s::timestamptz + %s * interval '1 second' WHERE provider=%s""",
+            (today, used + 1, now, spacing_seconds, provider),
         )
     return 0.0
 

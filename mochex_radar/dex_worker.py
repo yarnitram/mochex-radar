@@ -63,16 +63,18 @@ def initialize_scan_store(dsn: str) -> None:
         conn.execute(SCHEMA)
 
 
-def store_scan(dsn: str, token: WatchToken, scan_id, started, finished, status, pools) -> None:
-    with psycopg.connect(dsn, connect_timeout=5) as conn:
-        store_observations(dsn, pools, connection=conn)
-        conn.execute(
-            """INSERT INTO dex_scans
-            (id, mint, categories, category_source, started_at, finished_at, status, pool_count)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
-            (scan_id, token.mint, token.categories, token.category_source,
-             started, finished, status, len(pools)),
-        )
+def store_scan(dsn: str, token: WatchToken, scan_id, started, finished, status, pools, *, connection=None) -> None:
+    if connection is None:
+        with psycopg.connect(dsn, connect_timeout=5) as conn:
+            return store_scan(dsn, token, scan_id, started, finished, status, pools, connection=conn)
+    store_observations(dsn, pools, connection=connection)
+    connection.execute(
+        """INSERT INTO dex_scans
+        (id, mint, categories, category_source, started_at, finished_at, status, pool_count)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
+        (scan_id, token.mint, token.categories, token.category_source,
+         started, finished, status, len(pools)),
+    )
 
 
 def recent_scans(dsn: str, limit: int = 100) -> list[dict]:
