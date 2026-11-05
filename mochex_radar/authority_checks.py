@@ -4,7 +4,7 @@ import asyncio
 import hashlib
 import json
 from dataclasses import asdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import psycopg
 from fastapi.encoders import jsonable_encoder
@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS mint_authority_observations (
     PRIMARY KEY (mint,source,known_at)
 );
 CREATE INDEX IF NOT EXISTS mint_authority_history_idx ON mint_authority_observations (mint,known_at DESC);
+CREATE INDEX IF NOT EXISTS mint_authority_recent_idx ON mint_authority_observations (known_at DESC,mint,source);
 """
 
 
@@ -58,9 +59,25 @@ def authority_history(dsn: str, mint: str, as_of: datetime, limit: int = 10):
         rows = conn.execute("""SELECT payload,known_at,ingested_at FROM mint_authority_observations
             WHERE mint=%s AND known_at<=%s AND ingested_at<=%s
             ORDER BY known_at DESC,source LIMIT %s""", (mint, as_of, as_of, limit)).fetchall()
+    return _format_rows(rows, as_of)
+
+
+def _format_rows(rows, as_of):
     return [{"evidence":row[0], "ingested_at":row[2].isoformat(),
              "freshness":"current" if as_of-row[1] < timedelta(minutes=15) else "stale",
              "expires_at":(row[1]+timedelta(minutes=15)).isoformat()} for row in rows]
+
+
+def authority_snapshot(dsn: str, limit: int = 100, *, as_of: datetime | None = None):
+    as_of = as_of or datetime.now(timezone.utc)
+    if not 1 <= limit <= 100 or as_of.tzinfo is None or as_of.utcoffset() != timedelta(0):
+        raise ValueError("limit 1..100 and UTC as_of required")
+    with psycopg.connect(dsn, connect_timeout=5) as conn:
+        rows = conn.execute("""SELECT payload,known_at,ingested_at FROM mint_authority_observations
+            WHERE known_at<=%s AND ingested_at<=%s
+            ORDER BY known_at DESC,mint,source LIMIT %s""", (as_of,as_of,limit)).fetchall()
+    return {"status":"stored_partial_evidence", "as_of":as_of.isoformat(),
+            "observations":_format_rows(rows,as_of), "security_status":"UNKNOWN", "approved_pump_watch":False}
 
 
 class PersistentAuthorities:

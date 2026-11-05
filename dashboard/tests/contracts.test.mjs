@@ -4,8 +4,10 @@ import {
   outboxSchema,
   catalogSchema,
   profilePollsSchema,
+  authoritiesSchema,
 } from "../lib/contracts.ts";
 import { catalog, polls } from "./discovery-fixture.mjs";
+import { authorities } from "./authority-fixture.mjs";
 
 test("outbox contract fills omitted stored states with zero and strips unrelated data", () => {
   const data = outboxSchema.parse({
@@ -18,6 +20,48 @@ test("outbox contract fills omitted stored states with zero and strips unrelated
   assert.equal(data.states.uncertain, 0);
   assert.equal("body" in data, false);
   assert.equal("chat_id" in data, false);
+});
+
+test("authority evidence cannot imply approval or confuse absent, present and unknown", () => {
+  assert.equal(authoritiesSchema.parse(authorities).observations.length, 3);
+  const replaceEvidence = (mutation) => ({
+    ...authorities,
+    observations: [
+      {
+        ...authorities.observations[0],
+        evidence: { ...authorities.observations[0].evidence, ...mutation },
+      },
+    ],
+  });
+  for (const mutation of [
+    { security_status: "PASS" },
+    { approved_pump_watch: true },
+    { mint_authority_status: "PRESENT" },
+    { mint_authority: "1".repeat(32) },
+    { reason: "token_2022_extensions_not_evaluated" },
+  ]) {
+    assert.equal(
+      authoritiesSchema.safeParse(replaceEvidence(mutation)).success,
+      false,
+    );
+  }
+});
+
+test("authority freshness rejects future knowledge and stale data marked current", () => {
+  const row = authorities.observations[1];
+  for (const mutation of [
+    { freshness: "current" },
+    { ingested_at: "2026-01-01T13:00:00Z" },
+    { expires_at: "2026-01-02T11:15:00Z" },
+  ]) {
+    assert.equal(
+      authoritiesSchema.safeParse({
+        ...authorities,
+        observations: [{ ...row, ...mutation }],
+      }).success,
+      false,
+    );
+  }
 });
 
 test("catalog accepts observation evidence but rejects accidental safety approval", () => {

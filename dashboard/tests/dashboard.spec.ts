@@ -1,6 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { catalog, polls } from "./discovery-fixture.mjs";
+import { authorities } from "./authority-fixture.mjs";
 const snapshot = {
+  authorities: { status: "available", data: authorities },
   catalog: { status: "available", data: catalog },
   profilePolls: { status: "available", data: polls },
   fetched_at: "2026-01-01T12:00:00Z",
@@ -134,6 +136,7 @@ test("mobile view remains within viewport and unavailable services are explicit"
             "outbox",
             "catalog",
             "profilePolls",
+            "authorities",
           ].map((key) => [key, { status: "unavailable", data: null }]),
         ),
       },
@@ -348,4 +351,101 @@ test("disabled discovery storage differs from an empty observed catalog", async 
   await expect(
     panel.getByRole("heading", { name: "No discovery polls recorded" }),
   ).toBeVisible();
+});
+
+test("stored authority permissions remain separate from safety and filter without RPC", async ({
+  page,
+}) => {
+  const liveCalls: string[] = [];
+  page.on("request", (request) => {
+    if (
+      request.url().includes("api.mainnet") ||
+      request.url().includes("/security/solana/")
+    )
+      liveCalls.push(request.url());
+  });
+  await page.route("**/api/dashboard", (route) =>
+    route.fulfill({ json: snapshot }),
+  );
+  await page.goto("/");
+  const panel = page.locator("#authorities");
+  await expect(panel.getByRole("row")).toHaveCount(4);
+  await expect(
+    panel.getByRole("row").nth(1).getByText("absent", { exact: true }),
+  ).toHaveCount(2);
+  await expect(
+    panel.getByText("Overall security: UNKNOWN.", { exact: false }),
+  ).toBeVisible();
+  await expect(
+    panel.getByText("Token-2022 extensions not evaluated", { exact: true }),
+  ).toBeVisible();
+  await panel.screenshot({ path: "test-results/authority-evidence.png" });
+  await panel.getByRole("button", { name: "Stale", exact: true }).click();
+  await expect(panel.getByRole("row")).toHaveCount(2);
+  await expect(panel.getByText("present", { exact: true })).toBeVisible();
+  await panel
+    .getByRole("searchbox", { name: "Search authority mint" })
+    .fill("z".repeat(44));
+  await expect(
+    panel.getByRole("heading", { name: "No matching loaded readings" }),
+  ).toBeVisible();
+  expect(liveCalls).toEqual([]);
+  await expect(
+    panel.getByRole("button", { name: /check|approve|send/i }),
+  ).toHaveCount(0);
+});
+
+test("failed refresh keeps authority readings under an outdated label", async ({
+  page,
+}) => {
+  let fail = false;
+  await page.route("**/api/dashboard", (route) =>
+    fail ? route.fulfill({ status: 503 }) : route.fulfill({ json: snapshot }),
+  );
+  await page.goto("/");
+  const panel = page.locator("#authorities");
+  await expect(panel.getByText("3 readings", { exact: true })).toBeVisible();
+  fail = true;
+  await page.getByRole("button", { name: "Refresh data" }).click();
+  await expect(panel.getByText("outdated", { exact: true })).toHaveCount(4);
+  await expect(panel.getByRole("row")).toHaveCount(4);
+});
+
+test("authority storage states differ from no readings and do not hide core markets", async ({
+  page,
+}) => {
+  let mode = "disabled";
+  await page.route("**/api/dashboard", (route) =>
+    route.fulfill({
+      json: {
+        ...snapshot,
+        authorities:
+          mode === "unavailable"
+            ? { status: "unavailable", data: null }
+            : {
+                status: "available",
+                data:
+                  mode === "disabled"
+                    ? { status: "storage_disabled", observations: [] }
+                    : { ...authorities, observations: [] },
+              },
+      },
+    }),
+  );
+  await page.goto("/");
+  const panel = page.locator("#authorities");
+  await expect(
+    panel.getByRole("heading", { name: "Authority storage is not configured" }),
+  ).toBeVisible();
+  mode = "empty";
+  await page.getByRole("button", { name: "Refresh data" }).click();
+  await expect(
+    panel.getByRole("heading", { name: "No stored authority evidence" }),
+  ).toBeVisible();
+  mode = "unavailable";
+  await page.getByRole("button", { name: "Refresh data" }).click();
+  await expect(
+    panel.getByRole("heading", { name: "Authority evidence unavailable" }),
+  ).toBeVisible();
+  await expect(page.locator("#core").getByRole("row")).toHaveCount(8);
 });

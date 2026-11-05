@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Snapshot } from "@/lib/contracts";
 import DiscoveryPanel from "./discovery-panel";
+import AuthorityPanel from "./authority-panel";
 
 const PAIRS = ["SOL", "XRP", "DOGE", "LINK", "SUI", "AVAX", "ADA"];
 const ALERT_STATES = [
@@ -125,6 +126,9 @@ export default function Dashboard() {
           </a>
           <a href="#discovery">
             <span>⊙</span> Discovery catalog
+          </a>
+          <a href="#authorities">
+            <span>⊡</span> Authority evidence
           </a>
         </nav>
         <div className="sidebar-bottom">
@@ -387,6 +391,7 @@ export default function Dashboard() {
             send or retry messages.
           </div>
         </section>
+        <AuthorityPanel snapshot={snapshot} outdated={failed} />
         <DiscoveryPanel snapshot={snapshot} outdated={failed} />
         <section className="panel" id="dex">
           <div className="panel-heading">

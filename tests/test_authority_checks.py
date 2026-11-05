@@ -101,3 +101,24 @@ def test_api_budget_and_rpc_failures_are_explicit(failure,status):
             assert client.get(ROUTE).status_code == status
     finally:
         app.dependency_overrides.clear()
+
+
+def test_snapshot_without_storage_is_disabled_and_never_uses_rpc(monkeypatch):
+    import mochex_radar.api as api
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setattr(api, "get_authority_provider", lambda *args: pytest.fail("no RPC"))
+    with TestClient(app) as client:
+        assert client.get("/api/v1/security/authorities/snapshot").json()=={"status":"storage_disabled","observations":[]}
+        assert client.post("/api/v1/security/authorities/snapshot").status_code==405
+
+
+def test_snapshot_query_errors_are_explicit(monkeypatch):
+    import mochex_radar.api as api
+    monkeypatch.setenv("DATABASE_URL","unused")
+    with TestClient(app) as client:
+        assert client.get("/api/v1/security/authorities/snapshot?limit=101").status_code==422
+        def fail(*args):
+            raise psycopg.OperationalError("synthetic-private-dsn")
+        monkeypatch.setattr(api,"authority_snapshot",fail)
+        response=client.get("/api/v1/security/authorities/snapshot")
+        assert response.status_code==503 and "synthetic-private-dsn" not in response.text

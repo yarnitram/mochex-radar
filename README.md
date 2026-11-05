@@ -111,3 +111,8 @@ shared daily request budget. Overall security stays UNKNOWN, including when both
 authorities are disabled. Token-2022 and other security checks remain unevaluated.
 API, history/freshness behavior and public-RPC constraints:
 `docs/specs/017-solana-authority-evidence.md`.
+
+Dashboard Authority evidence reads stored partial observations without making RPC
+calls. Mint search/freshness filters apply to the newest 100 readings. Permission
+absence is distinct from safety; overall security remains UNKNOWN. See
+`docs/specs/018-authority-evidence-dashboard.md`.

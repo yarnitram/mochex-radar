@@ -7,6 +7,10 @@
   --text: #e4edf3;
   --green: #9ce8b1;
 }
+.badge.permission-present {
+  color: #edc78d;
+  background: #352d20;
+}
 .discovery-note {
   padding: 16px 22px 0;
   color: var(--muted);

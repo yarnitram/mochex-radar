@@ -7,6 +7,7 @@ import {
   outboxSchema,
   catalogSchema,
   profilePollsSchema,
+  authoritiesSchema,
   Service,
 } from "@/lib/contracts";
 
@@ -31,16 +32,25 @@ async function read<T>(
 }
 
 export async function GET() {
-  const [core, btc, collector, scans, outbox, catalog, profilePolls] =
-    await Promise.all([
-      read("/api/v1/dashboard/core", coreSchema),
-      read("/api/v1/market-context/btc", btcSchema),
-      read("/api/v1/collector/status", collectorSchema),
-      read("/api/v1/dex/scans?limit=100", scansSchema),
-      read("/api/v1/alerts/status", outboxSchema),
-      read("/api/v1/discovery/profiles/mints?limit=100", catalogSchema),
-      read("/api/v1/discovery/profiles/polls?limit=10", profilePollsSchema),
-    ]);
+  const [
+    core,
+    btc,
+    collector,
+    scans,
+    outbox,
+    catalog,
+    profilePolls,
+    authorities,
+  ] = await Promise.all([
+    read("/api/v1/dashboard/core", coreSchema),
+    read("/api/v1/market-context/btc", btcSchema),
+    read("/api/v1/collector/status", collectorSchema),
+    read("/api/v1/dex/scans?limit=100", scansSchema),
+    read("/api/v1/alerts/status", outboxSchema),
+    read("/api/v1/discovery/profiles/mints?limit=100", catalogSchema),
+    read("/api/v1/discovery/profiles/polls?limit=10", profilePollsSchema),
+    read("/api/v1/security/authorities/snapshot?limit=100", authoritiesSchema),
+  ]);
   return Response.json(
     {
       fetched_at: new Date().toISOString(),
@@ -51,6 +61,7 @@ export async function GET() {
       outbox,
       catalog,
       profilePolls,
+      authorities,
     },
     { headers: { "Cache-Control": "no-store" } },
   );

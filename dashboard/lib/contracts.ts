@@ -166,4 +166,105 @@ export type Snapshot = {
   outbox: Service<z.infer<typeof outboxSchema>>;
   catalog: Service<z.infer<typeof catalogSchema>>;
   profilePolls: Service<z.infer<typeof profilePollsSchema>>;
+  authorities: Service<z.infer<typeof authoritiesSchema>>;
 };
+
+const key = z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
+const authorityState = z.enum(["PRESENT", "DISABLED", "UNKNOWN"]);
+const authorityEvidence = z
+  .object({
+    mint: key,
+    known_at: timestamp,
+    slot: z.number().int().nonnegative(),
+    owner: key.nullable(),
+    reason: z.enum([
+      "account_missing",
+      "token_2022_extensions_not_evaluated",
+      "unsupported_owner",
+      "executable_account",
+      "unsupported_mint_layout",
+      "uninitialized_or_invalid_mint",
+      "invalid_authority_layout",
+      "partial_authority_evidence",
+    ]),
+    response_hash: z.string().regex(/^[a-f0-9]{64}$/),
+    mint_authority_status: authorityState,
+    freeze_authority_status: authorityState,
+    mint_authority: key.nullable(),
+    freeze_authority: key.nullable(),
+    source: z.literal("solana-public-mainnet:getAccountInfo:finalized"),
+    parser_version: z.literal("spl-mint-authorities-v1"),
+    security_status: z.literal("UNKNOWN"),
+    approved_pump_watch: z.literal(false),
+  })
+  .superRefine((e, ctx) => {
+    for (const [state, address] of [
+      [e.mint_authority_status, e.mint_authority],
+      [e.freeze_authority_status, e.freeze_authority],
+    ]) {
+      if ((state === "PRESENT") !== (address !== null))
+        ctx.addIssue({
+          code: "custom",
+          message: "authority address must match presence",
+        });
+    }
+    if (e.reason === "partial_authority_evidence") {
+      if (
+        e.owner !== "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" ||
+        e.mint_authority_status === "UNKNOWN" ||
+        e.freeze_authority_status === "UNKNOWN"
+      )
+        ctx.addIssue({
+          code: "custom",
+          message: "unsupported partial SPL evidence",
+        });
+    } else if (
+      e.mint_authority_status !== "UNKNOWN" ||
+      e.freeze_authority_status !== "UNKNOWN"
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "unsupported evidence cannot claim known authority state",
+      });
+    }
+  });
+export const authoritiesSchema = z
+  .discriminatedUnion("status", [
+    z.object({
+      status: z.literal("storage_disabled"),
+      observations: z.array(z.never()),
+    }),
+    z.object({
+      status: z.literal("stored_partial_evidence"),
+      as_of: timestamp,
+      security_status: z.literal("UNKNOWN"),
+      approved_pump_watch: z.literal(false),
+      observations: z
+        .array(
+          z.object({
+            evidence: authorityEvidence,
+            ingested_at: timestamp,
+            expires_at: timestamp,
+            freshness: z.enum(["current", "stale"]),
+          }),
+        )
+        .max(100),
+    }),
+  ])
+  .superRefine((data, ctx) => {
+    if (data.status !== "stored_partial_evidence") return;
+    for (const row of data.observations) {
+      const known = Date.parse(row.evidence.known_at),
+        cutoff = Date.parse(data.as_of);
+      if (
+        known > cutoff ||
+        Date.parse(row.ingested_at) > cutoff ||
+        Date.parse(row.expires_at) !== known + 900000 ||
+        (row.freshness === "current") !== cutoff - known < 900000
+      )
+        ctx.addIssue({
+          code: "custom",
+          message: "invalid evidence cutoff or freshness",
+        });
+    }
+  });

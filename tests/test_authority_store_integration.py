@@ -8,7 +8,7 @@ import pytest
 from psycopg.types.json import Jsonb
 
 from cluster_radar.providers.solana_authorities import TOKEN_PROGRAM, AuthorityObservation, encode_pubkey
-from mochex_radar.authority_checks import authority_history, initialize_authority_store, store_authority
+from mochex_radar.authority_checks import authority_history, authority_snapshot, initialize_authority_store, store_authority
 
 
 @pytest.mark.skipif(not os.environ.get("TEST_DATABASE_URL"), reason="requires temporary PostgreSQL")
@@ -32,6 +32,12 @@ def test_authority_evidence_is_immutable_point_in_time_and_never_safe():
         assert rows[0]["evidence"]["approved_pump_watch"] is False
         assert authority_history(dsn, mint, observation.known_at+timedelta(minutes=15))[0]["freshness"] == "stale"
         assert authority_history(dsn, mint, now+timedelta(hours=1))[0]["freshness"] == "stale"
+        store_authority(dsn, replace(observation, known_at=now+timedelta(hours=2)))
+        snapshot=authority_snapshot(dsn)
+        visible=[row for row in snapshot["observations"] if row["evidence"]["mint"]==mint]
+        assert len(visible)==1
+        assert visible[0]["freshness"]=="current"
+        assert all(row["evidence"]["security_status"]=="UNKNOWN" for row in snapshot["observations"])
         with pytest.raises(psycopg.errors.CheckViolation), psycopg.connect(dsn) as conn:
             conn.execute("UPDATE mint_authority_observations SET payload=%s WHERE mint=%s",
                 (Jsonb({"security_status":"PASS","approved_pump_watch":True}),mint))

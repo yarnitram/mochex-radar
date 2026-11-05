@@ -24,7 +24,7 @@ from mochex_radar.dex_worker import recent_scans
 from mochex_radar.dashboard import core_snapshot
 from mochex_radar.alert_store import outbox_status
 from mochex_radar.profile_discovery import recent_polls, discovered_catalog
-from mochex_radar.authority_checks import PersistentAuthorities, authority_history, initialize_authority_store, store_authority
+from mochex_radar.authority_checks import PersistentAuthorities, authority_history, authority_snapshot, initialize_authority_store, store_authority
 from cluster_radar.providers.solana_authorities import SolanaAuthorities
 
 @asynccontextmanager
@@ -64,6 +64,19 @@ def get_authority_provider(request: Request):
     if provider is None:
         raise HTTPException(status_code=503, detail="Solana authority checks disabled")
     return provider
+
+
+@app.get("/api/v1/security/authorities/snapshot")
+async def stored_authority_snapshot(limit: int = 100):
+    dsn = os.environ.get("DATABASE_URL")
+    if not dsn:
+        return {"status":"storage_disabled", "observations":[]}
+    try:
+        return await asyncio.to_thread(authority_snapshot, dsn, limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="limit must be 1..100") from exc
+    except psycopg.Error as exc:
+        raise HTTPException(status_code=503, detail="stored authority snapshot unavailable") from exc
 
 
 @app.get("/api/v1/security/solana/{mint}/authorities")
