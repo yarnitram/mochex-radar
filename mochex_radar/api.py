@@ -18,12 +18,15 @@ from mochex_radar.btc_context import classify
 
 from mochex_radar.markets import core_markets
 from mochex_radar.storage import latest_cycle, recent_btc_candles
+from mochex_radar.dex_store import initialize_dex_store, observation_history, store_observations
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.dex_provider = None
     async with httpx.AsyncClient() as client:
         if os.environ.get("DEX_LOOKUP_ENABLED", "false").lower() == "true":
+            if dsn := os.environ.get("DATABASE_URL"):
+                await asyncio.to_thread(initialize_dex_store, dsn)
             app.state.dex_provider = DexScreener(
                 client, max_requests=int(os.environ.get("DEX_LOOKUP_MAX_REQUESTS", "100"))
             )
@@ -50,12 +53,34 @@ async def solana_pools(mint: str, provider: DexScreener = Depends(get_dex_provid
         raise HTTPException(status_code=503, detail="DEX pool data unavailable") from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail="invalid Solana mint") from exc
+    persisted = False
+    if dsn := os.environ.get("DATABASE_URL"):
+        try:
+            await asyncio.to_thread(store_observations, dsn, pools)
+            persisted = True
+        except (psycopg.Error, ValueError) as exc:
+            raise HTTPException(status_code=503, detail="DEX observation storage unavailable") from exc
     return {
         "data_status": "observed",
+        "persisted": persisted,
         "security_status": "UNKNOWN",
         "approved_pump_watch": False,
         "pools": [jsonable_encoder(asdict(pool), custom_encoder={Decimal: str}) for pool in pools],
     }
+
+
+@app.get("/api/v1/dex/solana/{mint}/history")
+async def solana_pool_history(mint: str, as_of: datetime, limit: int = 100):
+    dsn = os.environ.get("DATABASE_URL")
+    if not dsn:
+        raise HTTPException(status_code=503, detail="DEX observation storage disabled")
+    try:
+        observations = await asyncio.to_thread(observation_history, dsn, mint, as_of, limit=limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="UTC as_of and limit 1..1000 required") from exc
+    except psycopg.Error as exc:
+        raise HTTPException(status_code=503, detail="DEX observation history unavailable") from exc
+    return {"data_status": "stored_observations", "observations": observations}
 
 
 async def get_http_client():

@@ -47,3 +47,13 @@ def test_invalid_mint_and_provider_failure():
             assert client.get(ROUTE).status_code == 503
         finally:
             app.dependency_overrides.clear()
+
+
+def test_history_disabled_and_invalid_cutoff(monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    with TestClient(app) as client:
+        route = f"/api/v1/dex/solana/{MINT}/history"
+        assert client.get(route, params={"as_of": "2026-01-01T00:00:00Z"}).status_code == 503
+        monkeypatch.setenv("DATABASE_URL", "postgresql://unused")
+        assert client.get(route, params={"as_of": "2026-01-01T00:00:00"}).status_code == 422
+        assert client.get(route, params={"as_of": "2026-01-01T00:00:00Z", "limit": 1001}).status_code == 422
