@@ -75,7 +75,7 @@ def main():
             assert all(snapshot[name]["status"] == "available" for name in ("btc", "collector", "scans", "outbox", "catalog", "profilePolls", "authorities"))
             assert compose("exec", "-T", "api", "id", "-u") == "10001"
             assert compose("exec", "-T", "dashboard", "id", "-u") != "0"
-            assert compose("exec", "-T", "api", "python", "-c", "import os,stat;print(bool(os.statvfs('/app').f_flag & stat.ST_RDONLY))") == "True"
+            assert compose("exec", "-T", "api", "python", "-c", "import os;print(bool(os.statvfs('/app').f_flag & os.ST_RDONLY))") == "True"
             try:
                 compose("exec", "-T", "api", "python", "-c", "open('/app/write-test','w').write('x')")
                 raise AssertionError("API root filesystem was writable")
