@@ -2,10 +2,16 @@
 
 import asyncio
 import os
+from contextlib import asynccontextmanager
+from dataclasses import asdict
 from datetime import datetime, timezone
+from decimal import Decimal
 import httpx
 import psycopg
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.encoders import jsonable_encoder
+
+from cluster_radar.providers.dexscreener import BudgetExceeded, DexScreener, ProviderUnavailable
 
 from mochex_radar.futures_feed import INTERVALS, FeedUnavailable, fetch_latest_closed
 from mochex_radar.btc_context import classify
@@ -13,7 +19,43 @@ from mochex_radar.btc_context import classify
 from mochex_radar.markets import core_markets
 from mochex_radar.storage import latest_cycle, recent_btc_candles
 
-app = FastAPI(title="Mochex Radar", version="0.1.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.state.dex_provider = None
+    async with httpx.AsyncClient() as client:
+        if os.environ.get("DEX_LOOKUP_ENABLED", "false").lower() == "true":
+            app.state.dex_provider = DexScreener(
+                client, max_requests=int(os.environ.get("DEX_LOOKUP_MAX_REQUESTS", "100"))
+            )
+        yield
+
+
+app = FastAPI(title="Mochex Radar", version="0.1.0", lifespan=lifespan)
+
+
+def get_dex_provider(request: Request) -> DexScreener:
+    provider = getattr(request.app.state, "dex_provider", None)
+    if provider is None:
+        raise HTTPException(status_code=503, detail="DEX lookup disabled")
+    return provider
+
+
+@app.get("/api/v1/dex/solana/{mint}/pools")
+async def solana_pools(mint: str, provider: DexScreener = Depends(get_dex_provider)):
+    try:
+        pools = await provider.pools(mint)
+    except BudgetExceeded as exc:
+        raise HTTPException(status_code=429, detail="DEX lookup request budget exhausted") from exc
+    except ProviderUnavailable as exc:
+        raise HTTPException(status_code=503, detail="DEX pool data unavailable") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="invalid Solana mint") from exc
+    return {
+        "data_status": "observed",
+        "security_status": "UNKNOWN",
+        "approved_pump_watch": False,
+        "pools": [jsonable_encoder(asdict(pool), custom_encoder={Decimal: str}) for pool in pools],
+    }
 
 
 async def get_http_client():

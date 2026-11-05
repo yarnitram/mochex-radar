@@ -18,6 +18,8 @@ services:
     build: .
     environment:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+      DEX_LOOKUP_ENABLED: ${DEX_LOOKUP_ENABLED:-false}
+      DEX_LOOKUP_MAX_REQUESTS: ${DEX_LOOKUP_MAX_REQUESTS:-100}
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:

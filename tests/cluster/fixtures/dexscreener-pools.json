@@ -1,0 +1,11 @@
+[
+  {
+    "chainId": "solana",
+    "pairAddress": "fixture-pool",
+    "baseToken": {"address": "So11111111111111111111111111111111111111112"},
+    "liquidity": {"usd": 12345.67},
+    "marketCap": null,
+    "fdv": 54321,
+    "pairCreatedAt": 1704067200000
+  }
+]

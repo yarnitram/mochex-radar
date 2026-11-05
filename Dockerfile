@@ -3,6 +3,7 @@ FROM python:3.12-slim
 WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY mochex_radar ./mochex_radar
+COPY cluster_radar ./cluster_radar
 RUN pip install --no-cache-dir . && useradd --create-home radar
 USER radar
 
