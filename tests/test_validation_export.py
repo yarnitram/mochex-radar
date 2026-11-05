@@ -158,6 +158,8 @@ def test_postgres_export_filters_and_preserves_observations():
                              base + 21 * STEP, base + 27 * STEP, base + 25 * STEP,
                              base + 30 * STEP, now=base + 31 * STEP)
         assert len(data["candles"]) == 59
+        bounded = stored_validation_candles(dsn, SOL, "15m", base, base + 30 * STEP, open_end=base + 3 * STEP)
+        assert len(bounded) == 5 and all(c.open_time < base + 3 * STEP for c in bounded)
     finally:
         with psycopg.connect(dsn) as conn:
             conn.execute("DELETE FROM market_candles WHERE venue=%s AND market_id IN (%s,%s,%s) AND open_time >= %s AND open_time < %s",

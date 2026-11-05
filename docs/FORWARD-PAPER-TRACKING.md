@@ -1,8 +1,8 @@
 # Manual forward research tracking
 
 Status: local journal infrastructure only. No real forward campaign has been
-started or validated. Capture scheduling, authenticated data acquisition, database
-wiring, depth/impact and actual execution simulation remain separate work.
+started or validated. Opt-in stored-snapshot scheduling is implemented;
+authenticated data acquisition, depth/impact and actual execution simulation remain separate work.
 
 ## Predeclare a plan
 
@@ -82,4 +82,21 @@ integrity failure stops the read. Summary outputs must be new files. Never drop
 missed/unavailable samples or count these manual records as authenticated fills.
 No account access, signing, orders, signals or alerts are enabled. Portfolio P&L,
 position sizing, short execution, leverage, liquidation, market impact, reliable
-automated scheduling and statistically adequate real-data validation are unfinished.
+long-running operations and statistically adequate real-data validation are unfinished.
+
+## Optional stored-observation worker
+
+`python -m mochex_radar.paper_worker --plan work/paper-plans/<PLAN_ID> --once`
+captures due decisions and records available post-close outcomes from PostgreSQL
+only. Supply DATABASE_URL privately. Omit `--once` for polling; default is five
+seconds, maximum five actions per cycle, with due captures prioritized. A query
+that finishes after capture grace does not backdate a record. Database failures
+leave missing evidence visible and retry on later cycles. Invalid source/journal
+state stops the worker. No schema initialization or provider request occurs.
+
+Optional Compose profile `paper` mounts private `work/paper-plans` at `/research`.
+Set PAPER_PLAN_ID to an existing future plan. Before starting, verify the mounted
+directory is writable by the image's runtime user. Run one configured worker per
+plan with shared persistent storage; separate filesystem copies are separate
+journals. Exclusive stage creation protects duplicate writes to the shared journal.
+Do not enable the profile as part of a synthetic/container smoke test.

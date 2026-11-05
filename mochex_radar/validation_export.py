@@ -19,13 +19,15 @@ Loader = Callable[[str, str, datetime, datetime], list[Candle]]
 
 
 def stored_validation_candles(dsn: str, asset_id: str, interval: str,
-                              start: datetime, evaluation_at: datetime) -> list[Candle]:
+                              start: datetime, evaluation_at: datetime, open_end: datetime | None = None) -> list[Candle]:
     """One bounded snapshot. Does not create tables or mutate application data."""
     if asset_id not in {m.asset_id for m in core_markets()} or interval not in INTERVALS:
         raise ValueError("unsupported market or interval")
     # Validate UTC even for callers outside the CLI.
     for timestamp in (start, evaluation_at):
         _timestamp(timestamp.isoformat())
+    if open_end is not None:
+        _timestamp(open_end.isoformat())
     market_id = asset_id.split(":", 2)[2]
     with psycopg.connect(dsn, connect_timeout=5) as conn:
         conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
@@ -39,7 +41,7 @@ def stored_validation_candles(dsn: str, asset_id: str, interval: str,
                  AND close_time <= %s AND retrieved_at <= %s
                ORDER BY market_id, open_time, retrieved_at LIMIT %s""",
             ("mexc-usdt-futures", market_id, "BTC_USDT", interval, start,
-             evaluation_at, evaluation_at, evaluation_at, MAX_ROWS + 1),
+             min(evaluation_at, open_end) if open_end else evaluation_at, evaluation_at, evaluation_at, MAX_ROWS + 1),
         ).fetchall()
     if len(rows) > MAX_ROWS:
         raise ValueError("dataset exceeds 10000 rows; narrow the time range")
