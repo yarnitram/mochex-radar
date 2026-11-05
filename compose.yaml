@@ -1,6 +1,15 @@
+x-app-defaults: &app-defaults
+  build: .
+  image: ${RADAR_APP_IMAGE:-mochex-radar-api:local}
+  read_only: true
+  tmpfs:
+    - /tmp:size=64m
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+
 services:
   redis:
-    image: redis:8-alpine
+    image: redis:8-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
     command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -10,7 +19,7 @@ services:
     restart: unless-stopped
 
   db:
-    image: postgres:17
+    image: postgres:17@sha256:3b0cda93be7c8dba2ed484d19393d93845dc3dafb88973e248ba8e6d99d784e1
     environment:
       POSTGRES_DB: radar
       POSTGRES_USER: radar
@@ -24,10 +33,26 @@ services:
       retries: 5
     restart: unless-stopped
 
+  initialize:
+    <<: *app-defaults
+    command: ["python", "-m", "mochex_radar.initialize"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
   api:
-    build: .
+    <<: *app-defaults
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
     environment:
       REDIS_URL: redis://redis:6379/0
+      RADAR_API_TOKEN: ${RADAR_API_TOKEN:-}
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
       DEX_LOOKUP_ENABLED: ${DEX_LOOKUP_ENABLED:-false}
       DEX_LOOKUP_MAX_REQUESTS: ${DEX_LOOKUP_MAX_REQUESTS:-100}
@@ -35,48 +60,61 @@ services:
       SOLANA_AUTHORITIES_ENABLED: ${SOLANA_AUTHORITIES_ENABLED:-false}
       SOLANA_AUTHORITY_DAILY_REQUESTS: ${SOLANA_AUTHORITY_DAILY_REQUESTS:-100}
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:${RADAR_API_PORT:-8000}:8000"
     depends_on:
-      db:
-        condition: service_healthy
+      initialize:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   dashboard:
+    image: ${RADAR_DASHBOARD_IMAGE:-mochex-radar-dashboard:local}
     build: ./dashboard
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
     environment:
       RADAR_API_ORIGIN: http://api:8000
+      RADAR_API_TOKEN: ${RADAR_API_TOKEN:-}
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:${RADAR_DASHBOARD_PORT:-3000}:3000"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     restart: unless-stopped
 
   collector:
-    build: .
+    <<: *app-defaults
     command: ["python", "-m", "mochex_radar.collector"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
       COLLECT_INTERVAL_SECONDS: ${COLLECT_INTERVAL_SECONDS:-60}
       ALERT_DATA_QUALITY_ENABLED: ${ALERT_DATA_QUALITY_ENABLED:-false}
     depends_on:
-      db:
-        condition: service_healthy
+      initialize:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   streamer:
-    build: .
+    <<: *app-defaults
     command: ["python", "-m", "mochex_radar.websocket_feed"]
     environment:
       REDIS_URL: redis://redis:6379/0
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
     depends_on:
-      db:
-        condition: service_healthy
+      initialize:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   dex-scanner:
     profiles: ["dex"]
-    build: .
+    <<: *app-defaults
     command: ["python", "-m", "mochex_radar.dex_worker"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
@@ -86,13 +124,13 @@ services:
     volumes:
       - ./config/dex-watchlist.json:/config/dex-watchlist.json:ro
     depends_on:
-      db:
-        condition: service_healthy
+      initialize:
+        condition: service_completed_successfully
     restart: "on-failure:3"
 
   alert-worker:
     profiles: ["alerts"]
-    build: .
+    <<: *app-defaults
     command: ["python", "-m", "mochex_radar.alert_worker", "--send"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
@@ -101,13 +139,13 @@ services:
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
       TELEGRAM_DAILY_ATTEMPTS: ${TELEGRAM_DAILY_ATTEMPTS:-100}
     depends_on:
-      db:
-        condition: service_healthy
+      initialize:
+        condition: service_completed_successfully
     restart: "on-failure:3"
 
   profile-discovery:
     profiles: ["discovery"]
-    build: .
+    <<: *app-defaults
     command: ["python", "-m", "mochex_radar.profile_discovery"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
@@ -116,32 +154,32 @@ services:
       PROFILE_MAX_POOL_SCANS: ${PROFILE_MAX_POOL_SCANS:-3}
       DEX_LOOKUP_DAILY_REQUESTS: ${DEX_LOOKUP_DAILY_REQUESTS:-100}
     depends_on:
-      db:
-        condition: service_healthy
+      initialize:
+        condition: service_completed_successfully
     restart: "on-failure:3"
 
   backfill:
     profiles: ["backfill"]
-    build: .
+    <<: *app-defaults
     command: ["python", "-m", "mochex_radar.backfill", "--candles", "${BACKFILL_CANDLES:-24}"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
     depends_on:
-      db:
-        condition: service_healthy
+      initialize:
+        condition: service_completed_successfully
     restart: "no"
 
   paper-worker:
     profiles: ["paper"]
-    build: .
+    <<: *app-defaults
     command: ["python", "-m", "mochex_radar.paper_worker", "--plan", "/research/${PAPER_PLAN_ID:-not-configured}"]
     environment:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
     volumes:
       - ./work/paper-plans:/research
     depends_on:
-      db:
-        condition: service_healthy
+      initialize:
+        condition: service_completed_successfully
     restart: "on-failure:3"
 
 volumes:

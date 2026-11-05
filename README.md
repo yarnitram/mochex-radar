@@ -163,3 +163,11 @@ Optional REDIS_URL enables provisional intrabar snapshots from the public stream
 `/api/v1/live/core` labels current/stale/missing observations explicitly. Redis loss
 does not replace or stop durable PostgreSQL candle collection. See
 `docs/specs/032-redis-live-snapshots.md` for TTL, outage and provenance limits.
+
+Private pilot runtime: `docker compose run --rm initialize` bootstraps every
+existing store idempotently without providers or sending. Compose API/workers wait
+for initialization; `/health/ready` checks durable schema and labels Redis loss as
+degraded. Set RADAR_API_TOKEN privately for API access; the dashboard forwards it
+server-side. Both host ports remain loopback-only. Runtime dependencies/images are
+hash/digest pinned. `python scripts/stack_smoke.py` builds an isolated disposable
+stack and tests bootstrap/auth/read-only runtime/cache loss without provider workers.

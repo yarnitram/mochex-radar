@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+import hmac
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from datetime import datetime, timezone
@@ -10,6 +11,8 @@ import httpx
 import psycopg
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
+from mochex_radar.readiness import database_ready
 
 from cluster_radar.providers.dexscreener import BudgetExceeded, DexScreener, ProviderUnavailable
 
@@ -64,6 +67,31 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Mochex Radar", version="0.1.0", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def private_api_access(request: Request, call_next):
+    token = os.environ.get("RADAR_API_TOKEN")
+    if token and (request.url.path.startswith(("/api/", "/docs", "/redoc")) or request.url.path == "/openapi.json"):
+        supplied = request.headers.get("authorization", "")
+        if not hmac.compare_digest(supplied.encode(), ("Bearer " + token).encode()):
+            return JSONResponse({"detail": "API access token required"}, status_code=401, headers={"WWW-Authenticate": "Bearer"})
+    return await call_next(request)
+
+
+@app.get("/health/ready")
+async def readiness(request: Request):
+    durable = await asyncio.to_thread(database_ready, os.environ.get("DATABASE_URL"))
+    live = getattr(request.app.state, "live_store", None)
+    cache = "disabled"
+    if live:
+        try:
+            await live.client.ping()
+            cache = "ready"
+        except RedisError:
+            cache = "unavailable"
+    return JSONResponse({"status": "not_ready" if not durable else "degraded" if cache == "unavailable" else "ready",
+                         "durable_store_ready": durable, "live_cache": cache}, status_code=200 if durable else 503)
 
 
 @app.get("/api/v1/live/core")

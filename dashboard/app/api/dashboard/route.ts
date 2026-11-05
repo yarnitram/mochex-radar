@@ -22,6 +22,7 @@ async function read<T>(
   try {
     const origin = process.env.RADAR_API_ORIGIN || "http://127.0.0.1:8000";
     const response = await fetch(new URL(path, origin), {
+      headers: process.env.RADAR_API_TOKEN ? { Authorization: `Bearer ${process.env.RADAR_API_TOKEN}` } : {},
       cache: "no-store",
       signal: AbortSignal.timeout(5000),
     });
