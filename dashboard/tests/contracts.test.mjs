@@ -113,3 +113,12 @@ test("invalid counts or unknown states cannot masquerade as valid delivery healt
     );
   }
 });
+
+import { featuresSchema } from "../lib/contracts.ts";
+test("core features preserve unknowns and prohibit enabled signals", () => {
+ const data={data_status:"storage_disabled",as_of:"2026-01-01T12:00:00Z",interval:"15m",research_only:true,signals_enabled:false,
+ markets:["SOL","XRP","DOGE","LINK","SUI","AVAX","ADA"].map(base=>({base,status:"unavailable",reason:"insufficient_lookback",feature_version:"core-features-v1",provisional:true,data_as_of:null,relative_strength_reason:null,features:{atr:null,atr_pct:null,range_atr:null,relative_volume:null,relative_strength:null,volatility_state:null,structure_state:null}}))};
+ assert.equal(featuresSchema.parse(data).markets[0].features.relative_volume,null);
+ assert.equal(featuresSchema.safeParse({...data,signals_enabled:true}).success,false);
+ assert.equal(featuresSchema.safeParse({...data,markets:[]}).success,false);
+});

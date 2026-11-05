@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Snapshot } from "@/lib/contracts";
+import FeaturesPanel from "./features-panel";
 import DiscoveryPanel from "./discovery-panel";
 import AuthorityPanel from "./authority-panel";
 
@@ -391,6 +392,7 @@ export default function Dashboard() {
             send or retry messages.
           </div>
         </section>
+        <FeaturesPanel snapshot={snapshot} outdated={failed} />
         <AuthorityPanel snapshot={snapshot} outdated={failed} />
         <DiscoveryPanel snapshot={snapshot} outdated={failed} />
         <section className="panel" id="dex">

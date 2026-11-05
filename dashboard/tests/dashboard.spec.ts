@@ -449,3 +449,10 @@ test("authority storage states differ from no readings and do not hide core mark
   ).toBeVisible();
   await expect(page.locator("#core").getByRole("row")).toHaveCount(8);
 });
+
+test("core feature service outage is explicit without hiding core pairs", async ({page}) => {
+ await page.route("**/api/dashboard", route => route.fulfill({json:snapshot}));
+ await page.goto("/");
+ await expect(page.getByRole("heading",{name:"Core market features"})).toBeVisible();
+ await expect(page.getByText("Feature data unavailable. Stored candle history is required.")).toBeVisible();
+});

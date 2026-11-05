@@ -159,6 +159,7 @@ export const profilePollsSchema = z.discriminatedUnion("status", [
 ]);
 export type Snapshot = {
   fetched_at: string;
+  features?: Service<z.infer<typeof featuresSchema>>;
   core: Service<z.infer<typeof coreSchema>>;
   btc: Service<z.infer<typeof btcSchema>>;
   collector: Service<z.infer<typeof collectorSchema>>;
@@ -268,3 +269,21 @@ export const authoritiesSchema = z
         });
     }
   });
+
+const featureDecimal = z.string().regex(/^-?\d+(\.\d+)?$/).nullable();
+export const featuresSchema = z.object({
+  data_status: z.enum(["stored_observations", "storage_disabled"]),
+  as_of: z.string().datetime({offset: true}), interval: z.literal("15m"),
+  research_only: z.literal(true), signals_enabled: z.literal(false),
+  markets: z.array(z.object({
+    base: z.enum(["SOL","XRP","DOGE","LINK","SUI","AVAX","ADA"]),
+    status: z.enum(["ok","unavailable"]), reason: z.string().nullable(),
+    feature_version: z.literal("core-features-v1"), provisional: z.literal(true),
+    data_as_of: z.string().datetime({offset:true}).nullable(),
+    relative_strength_reason: z.string().nullable(),
+    features: z.object({atr: featureDecimal, atr_pct: featureDecimal, range_atr: featureDecimal,
+      relative_volume: featureDecimal, relative_strength: featureDecimal,
+      volatility_state: z.enum(["expanding","compressed","normal"]).nullable(),
+      structure_state: z.enum(["breakout_up","breakdown","range"]).nullable()})
+  })).length(7)
+});

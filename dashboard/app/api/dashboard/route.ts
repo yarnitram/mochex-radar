@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  featuresSchema,
   btcSchema,
   collectorSchema,
   coreSchema,
@@ -33,6 +34,7 @@ async function read<T>(
 
 export async function GET() {
   const [
+    features,
     core,
     btc,
     collector,
@@ -42,6 +44,7 @@ export async function GET() {
     profilePolls,
     authorities,
   ] = await Promise.all([
+    read("/api/v1/features/core", featuresSchema),
     read("/api/v1/dashboard/core", coreSchema),
     read("/api/v1/market-context/btc", btcSchema),
     read("/api/v1/collector/status", collectorSchema),
@@ -53,6 +56,7 @@ export async function GET() {
   ]);
   return Response.json(
     {
+      features,
       fetched_at: new Date().toISOString(),
       core,
       btc,
