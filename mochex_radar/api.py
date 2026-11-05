@@ -19,6 +19,7 @@ from mochex_radar.btc_context import classify
 from mochex_radar.markets import core_markets
 from mochex_radar.storage import latest_cycle, recent_btc_candles
 from mochex_radar.dex_store import initialize_dex_store, observation_history, store_observations
+from mochex_radar.provider_budget import initialize_budget_store, PersistentDexScreener
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -27,16 +28,22 @@ async def lifespan(app: FastAPI):
         if os.environ.get("DEX_LOOKUP_ENABLED", "false").lower() == "true":
             if dsn := os.environ.get("DATABASE_URL"):
                 await asyncio.to_thread(initialize_dex_store, dsn)
+                await asyncio.to_thread(initialize_budget_store, dsn)
             app.state.dex_provider = DexScreener(
                 client, max_requests=int(os.environ.get("DEX_LOOKUP_MAX_REQUESTS", "100"))
             )
+            if dsn:
+                app.state.dex_provider = PersistentDexScreener(
+                    app.state.dex_provider, dsn,
+                    daily_limit=int(os.environ.get("DEX_LOOKUP_DAILY_REQUESTS", "100")),
+                )
         yield
 
 
 app = FastAPI(title="Mochex Radar", version="0.1.0", lifespan=lifespan)
 
 
-def get_dex_provider(request: Request) -> DexScreener:
+def get_dex_provider(request: Request) -> DexScreener | PersistentDexScreener:
     provider = getattr(request.app.state, "dex_provider", None)
     if provider is None:
         raise HTTPException(status_code=503, detail="DEX lookup disabled")

@@ -48,3 +48,8 @@ One API worker may attempt up to `DEX_LOOKUP_MAX_REQUESTS` (default 100) lookups
 per process lifetime. Keep it behind trusted internal access. Responses retain
 unknown security status until independent risk evidence is implemented.
 See `docs/specs/007-cluster-integration.md` for limits and remaining scope.
+
+With a database configured, DEX lookups also share a durable UTC-day ceiling
+(`DEX_LOOKUP_DAILY_REQUESTS`, default 100). Failed requests count and API restarts
+retain usage. All workers must use the same setting. See
+`docs/specs/009-persistent-provider-budget.md`.
