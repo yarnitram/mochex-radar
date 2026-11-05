@@ -4,6 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Snapshot } from "@/lib/contracts";
 
 const PAIRS = ["SOL", "XRP", "DOGE", "LINK", "SUI", "AVAX", "ADA"];
+const ALERT_STATES = [
+  "pending",
+  "processing",
+  "sent",
+  "failed",
+  "uncertain",
+  "expired",
+] as const;
 const time = (value?: string | null) =>
   value
     ? new Date(value).toLocaleString(undefined, { hour12: false })
@@ -69,6 +77,8 @@ export default function Dashboard() {
   const markets = snapshot?.core.data?.markets;
   const btc = snapshot?.btc.data;
   const collector = snapshot?.collector.data;
+  const outbox = snapshot?.outbox?.data;
+  const outboxAvailable = outbox?.status === "stored_outbox";
   const allScans = snapshot?.scans.data?.scans || [];
   const scans = allScans.filter(
     (scan) => category === "all" || scan.categories.includes(category),
@@ -108,6 +118,9 @@ export default function Dashboard() {
           </a>
           <a href="#system">
             <span>▤</span> System health
+          </a>
+          <a href="#alerts">
+            <span>◇</span> Alert delivery
           </a>
         </nav>
         <div className="sidebar-bottom">
@@ -316,6 +329,60 @@ export default function Dashboard() {
             </div>
           </section>
         </div>
+        <section className="panel" id="alerts" aria-labelledby="alerts-title">
+          <div className="panel-heading">
+            <div>
+              <h2 id="alerts-title">Alert delivery</h2>
+              <p>Operational notices · All retained records</p>
+            </div>
+            <Badge
+              value={
+                failed
+                  ? "outdated"
+                  : outboxAvailable
+                    ? "stored records"
+                    : outbox?.status === "storage_disabled"
+                      ? "storage disabled"
+                      : snapshot
+                        ? "unavailable"
+                        : "loading"
+              }
+            />
+          </div>
+          <dl className="alert-grid">
+            {ALERT_STATES.map((state) => (
+              <div
+                className={`alert-state ${state}`}
+                role="group"
+                aria-label={`${state} notices`}
+                key={state}
+              >
+                <dt>{state === "processing" ? "Claimed" : state}</dt>
+                <dd>{outboxAvailable ? outbox.states[state] : "—"}</dd>
+              </div>
+            ))}
+          </dl>
+          {outboxAvailable && outbox.states.uncertain > 0 && (
+            <p className="alert-review">
+              Uncertain deliveries need review. They are held to avoid
+              automatically sending a possible duplicate.
+            </p>
+          )}
+          {!outboxAvailable && (
+            <p className="alert-explanation">
+              {outbox?.status === "storage_disabled"
+                ? "Alert storage is not configured."
+                : snapshot
+                  ? "Alert delivery records are unavailable. Other dashboard sections can still update."
+                  : "Waiting for alert delivery records."}
+            </p>
+          )}
+          <div className="panel-foot">
+            Stored states reflect the last worker updates. They do not confirm
+            sender availability or Telegram configuration. This view does not
+            send or retry messages.
+          </div>
+        </section>
         <section className="panel" id="dex">
           <div className="panel-heading">
             <div>

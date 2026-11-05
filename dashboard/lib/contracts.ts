@@ -60,10 +60,25 @@ export const scansSchema = z.object({
 export type Service<T> =
   | { status: "available"; data: T }
   | { status: "unavailable"; data: null };
+const count = z.number().int().nonnegative().default(0);
+export const outboxSchema = z.object({
+  status: z.enum(["storage_disabled", "stored_outbox"]),
+  states: z
+    .object({
+      pending: count,
+      processing: count,
+      sent: count,
+      failed: count,
+      uncertain: count,
+      expired: count,
+    })
+    .strict(),
+});
 export type Snapshot = {
   fetched_at: string;
   core: Service<z.infer<typeof coreSchema>>;
   btc: Service<z.infer<typeof btcSchema>>;
   collector: Service<z.infer<typeof collectorSchema>>;
   scans: Service<z.infer<typeof scansSchema>>;
+  outbox: Service<z.infer<typeof outboxSchema>>;
 };

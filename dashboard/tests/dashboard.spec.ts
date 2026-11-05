@@ -1,6 +1,20 @@
 import { test, expect } from "@playwright/test";
 const snapshot = {
   fetched_at: "2026-01-01T12:00:00Z",
+  outbox: {
+    status: "available",
+    data: {
+      status: "stored_outbox",
+      states: {
+        pending: 3,
+        processing: 0,
+        sent: 5,
+        failed: 1,
+        uncertain: 2,
+        expired: 4,
+      },
+    },
+  },
   core: {
     status: "available",
     data: {
@@ -109,7 +123,7 @@ test("mobile view remains within viewport and unavailable services are explicit"
       json: {
         fetched_at: snapshot.fetched_at,
         ...Object.fromEntries(
-          ["core", "btc", "collector", "scans"].map((key) => [
+          ["core", "btc", "collector", "scans", "outbox"].map((key) => [
             key,
             { status: "unavailable", data: null },
           ]),
@@ -120,6 +134,9 @@ test("mobile view remains within viewport and unavailable services are explicit"
   await page.goto("/");
   await expect(page.getByText("Core feed unavailable")).toBeVisible();
   await expect(
+    page.locator("#alerts").getByText("unavailable", { exact: true }),
+  ).toBeVisible();
+  await expect(
     page.getByRole("heading", { name: "Scan history unavailable" }),
   ).toBeVisible();
   expect(
@@ -127,4 +144,89 @@ test("mobile view remains within viewport and unavailable services are explicit"
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
+});
+
+test("alert counts show uncertain holds and remain labeled when refresh fails", async ({
+  page,
+}) => {
+  let fail = false;
+  await page.route("**/api/dashboard", (route) =>
+    fail ? route.fulfill({ status: 503 }) : route.fulfill({ json: snapshot }),
+  );
+  await page.goto("/");
+  const alerts = page.locator("#alerts");
+  await expect(
+    alerts.getByRole("group", { name: "uncertain notices" }),
+  ).toContainText("2");
+  await expect(
+    alerts.getByRole("group", { name: "sent notices" }),
+  ).toContainText("5");
+  await expect(
+    alerts.getByText("Uncertain deliveries need review.", { exact: false }),
+  ).toBeVisible();
+  await expect(alerts.getByRole("button")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Refresh data" }),
+  ).toBeEnabled();
+  await alerts.screenshot({ path: "test-results/alert-health.png" });
+  fail = true;
+  await page.getByRole("button", { name: "Refresh data" }).click();
+  await expect(alerts.getByText("outdated", { exact: true })).toBeVisible();
+  await expect(
+    alerts.getByRole("group", { name: "sent notices" }),
+  ).toContainText("5");
+});
+
+test("disabled alert storage is not displayed as an empty working outbox", async ({
+  page,
+}) => {
+  await page.route("**/api/dashboard", (route) =>
+    route.fulfill({
+      json: {
+        ...snapshot,
+        outbox: {
+          status: "available",
+          data: { status: "storage_disabled", states: {} },
+        },
+      },
+    }),
+  );
+  await page.goto("/");
+  await expect(
+    page.locator("#alerts").getByText("Alert storage is not configured."),
+  ).toBeVisible();
+  await expect(page.locator("#alerts dd")).toHaveText([
+    "—",
+    "—",
+    "—",
+    "—",
+    "—",
+    "—",
+  ]);
+});
+
+test("alert service failure leaves core observations usable", async ({
+  page,
+}) => {
+  await page.route("**/api/dashboard", (route) =>
+    route.fulfill({
+      json: { ...snapshot, outbox: { status: "unavailable", data: null } },
+    }),
+  );
+  await page.goto("/");
+  await expect(
+    page.locator("#alerts").getByText("unavailable", { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator("#alerts dd")).toHaveText([
+    "—",
+    "—",
+    "—",
+    "—",
+    "—",
+    "—",
+  ]);
+  await expect(page.locator("#core").getByRole("row")).toHaveCount(8);
+  await expect(
+    page.locator("#core").getByText("stale", { exact: true }),
+  ).toBeVisible();
 });

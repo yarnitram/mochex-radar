@@ -83,3 +83,8 @@ Optional `ALERT_DATA_QUALITY_ENABLED=true` queues incomplete MEXC collection-cyc
 notices after candle storage succeeds. It does not enable Telegram sending.
 Healthy duplicate cycles do not create warnings; queue errors do not undo stored
 candles. See `docs/specs/013-collector-quality-notices.md`.
+
+Dashboard Alert delivery shows stored operational-notice state counts, including
+uncertain deliveries held for review. It does not send or retry messages and does
+not assert worker availability. Disabled/unavailable storage remains explicit.
+See `docs/specs/014-alert-health-dashboard.md`.

@@ -4,6 +4,7 @@ import {
   collectorSchema,
   coreSchema,
   scansSchema,
+  outboxSchema,
   Service,
 } from "@/lib/contracts";
 
@@ -28,14 +29,22 @@ async function read<T>(
 }
 
 export async function GET() {
-  const [core, btc, collector, scans] = await Promise.all([
+  const [core, btc, collector, scans, outbox] = await Promise.all([
     read("/api/v1/dashboard/core", coreSchema),
     read("/api/v1/market-context/btc", btcSchema),
     read("/api/v1/collector/status", collectorSchema),
     read("/api/v1/dex/scans?limit=100", scansSchema),
+    read("/api/v1/alerts/status", outboxSchema),
   ]);
   return Response.json(
-    { fetched_at: new Date().toISOString(), core, btc, collector, scans },
+    {
+      fetched_at: new Date().toISOString(),
+      core,
+      btc,
+      collector,
+      scans,
+      outbox,
+    },
     { headers: { "Cache-Control": "no-store" } },
   );
 }
