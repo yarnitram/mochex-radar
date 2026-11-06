@@ -3,6 +3,7 @@
 import asyncio
 import os
 import hmac
+from pathlib import Path
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from datetime import datetime, timezone
@@ -26,10 +27,20 @@ from mochex_radar.dex_store import initialize_dex_store, observation_history, st
 from mochex_radar.provider_budget import initialize_budget_store, PersistentDexScreener
 from mochex_radar.dex_worker import recent_scans
 from mochex_radar.dashboard import core_snapshot
+from mochex_radar.research_status import research_status
+from mochex_radar.categories import DEFAULT_REGISTRY_PATH, build_category_view, load_category_registry
 from mochex_radar.alert_store import outbox_status
 from mochex_radar.profile_discovery import recent_polls, discovered_catalog
 from mochex_radar.authority_checks import PersistentAuthorities, authority_history, authority_snapshot, initialize_authority_store, store_authority
+from mochex_radar.candidate_evaluation import (
+    PersistentHolderConcentration,
+    evaluate_stored_candidate,
+    holder_history,
+    initialize_holder_store,
+    store_holder_observation,
+)
 from cluster_radar.providers.solana_authorities import SolanaAuthorities
+from cluster_radar.providers.solana_holders import SolanaHolderConcentration
 from mochex_radar.live_state import LiveSnapshots, RedisError
 
 @asynccontextmanager
@@ -37,6 +48,7 @@ async def lifespan(app: FastAPI):
     app.state.live_store = LiveSnapshots.from_url(os.environ["REDIS_URL"]) if os.environ.get("REDIS_URL") else None
     app.state.dex_provider = None
     app.state.authority_provider = None
+    app.state.holder_provider = None
     async with httpx.AsyncClient() as client:
         if os.environ.get("SOLANA_AUTHORITIES_ENABLED", "false").lower() == "true":
             authority_dsn = os.environ.get("DATABASE_URL")
@@ -46,6 +58,16 @@ async def lifespan(app: FastAPI):
             app.state.authority_provider = PersistentAuthorities(
                 SolanaAuthorities(client, max_requests=2**63-1), authority_dsn,
                 int(os.environ.get("SOLANA_AUTHORITY_DAILY_REQUESTS", "100")),
+            )
+        if os.environ.get("SOLANA_HOLDERS_ENABLED", "false").lower() == "true":
+            holder_dsn = os.environ.get("DATABASE_URL")
+            if not holder_dsn:
+                raise ValueError("holder checks require DATABASE_URL")
+            await asyncio.to_thread(initialize_holder_store, holder_dsn)
+            app.state.holder_provider = PersistentHolderConcentration(
+                SolanaHolderConcentration(client, max_requests=2**63-1),
+                holder_dsn,
+                int(os.environ.get("SOLANA_HOLDER_DAILY_REQUESTS", "100")),
             )
         if os.environ.get("DEX_LOOKUP_ENABLED", "false").lower() == "true":
             if dsn := os.environ.get("DATABASE_URL"):
@@ -114,6 +136,13 @@ def get_authority_provider(request: Request):
     return provider
 
 
+def get_holder_provider(request: Request):
+    provider = getattr(request.app.state, "holder_provider", None)
+    if provider is None:
+        raise HTTPException(status_code=503, detail="Solana holder checks disabled")
+    return provider
+
+
 @app.get("/api/v1/security/authorities/snapshot")
 async def stored_authority_snapshot(limit: int = 100):
     dsn = os.environ.get("DATABASE_URL")
@@ -158,6 +187,61 @@ async def solana_authority_history(mint: str, as_of: datetime, limit: int = 10):
         raise HTTPException(status_code=503, detail="authority history unavailable") from exc
     return {"data_status":"stored_partial_evidence", "observations":history,
             "security_status":"UNKNOWN", "approved_pump_watch":False}
+
+
+@app.get("/api/v1/security/solana/{mint}/holders")
+async def solana_holders(mint: str, provider: PersistentHolderConcentration = Depends(get_holder_provider)):
+    try:
+        observation = await provider.check(mint)
+    except BudgetExceeded as exc:
+        raise HTTPException(status_code=429, detail="holder request budget exhausted") from exc
+    except ProviderUnavailable as exc:
+        raise HTTPException(status_code=503, detail="holder concentration evidence unavailable") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="invalid Solana public key") from exc
+    try:
+        await asyncio.to_thread(store_holder_observation, provider.dsn, observation)
+    except (psycopg.Error, ValueError) as exc:
+        raise HTTPException(status_code=503, detail="holder concentration storage unavailable") from exc
+    raw_dict = asdict(observation)
+    raw_dict.pop("holder_evidence", None)
+    return {
+        "data_status": "observed",
+        "partial": True,
+        "persisted": True,
+        "evidence": jsonable_encoder(raw_dict, custom_encoder={Decimal: str}),
+        "freshness_lifetime_seconds": 900,
+    }
+
+
+@app.get("/api/v1/security/solana/{mint}/holders/history")
+async def solana_holder_history(mint: str, as_of: datetime, limit: int = 10):
+    dsn = os.environ.get("DATABASE_URL")
+    if not dsn:
+        raise HTTPException(status_code=503, detail="holder concentration storage disabled")
+    try:
+        history = await asyncio.to_thread(holder_history, dsn, mint, as_of, limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="valid public key, UTC cutoff and limit 1..100 required") from exc
+    except psycopg.Error as exc:
+        raise HTTPException(status_code=503, detail="holder concentration history unavailable") from exc
+    return {
+        "data_status": "stored_partial_evidence",
+        "observations": history,
+        "security_status": "UNKNOWN",
+        "approved_pump_watch": False,
+    }
+
+
+@app.get("/api/v1/candidates/solana/{mint}/evaluation")
+async def solana_candidate_evaluation(mint: str, as_of: datetime | None = None):
+    dsn = os.environ.get("DATABASE_URL")
+    try:
+        return await asyncio.to_thread(evaluate_stored_candidate, dsn, mint, as_of=as_of)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="valid Solana mint and UTC as_of required") from exc
+    except psycopg.Error as exc:
+        raise HTTPException(status_code=503, detail="stored candidate evaluation unavailable") from exc
 
 
 def get_dex_provider(request: Request) -> DexScreener | PersistentDexScreener:
@@ -223,6 +307,28 @@ async def dashboard_core():
         return await asyncio.to_thread(core_snapshot, os.environ.get("DATABASE_URL"))
     except psycopg.Error as exc:
         raise HTTPException(status_code=503, detail="stored core observations unavailable") from exc
+
+
+@app.get("/api/v1/categories/registry")
+async def category_registry(category: str = "all"):
+    if category not in ("all", "meme", "ai", "unclassified"):
+        raise HTTPException(status_code=422, detail="category must be all, meme, ai, or unclassified")
+    path = Path(os.environ.get("CATEGORY_REGISTRY_PATH") or DEFAULT_REGISTRY_PATH)
+    try:
+        registry = await asyncio.to_thread(load_category_registry, path)
+        return build_category_view(registry, category_filter=category)
+    except (OSError, ValueError):
+        raise HTTPException(status_code=503, detail="category registry unavailable") from None
+
+
+@app.get("/api/v1/research/status")
+async def forward_research_status():
+    root = os.environ.get("RESEARCH_STATUS_ROOT")
+    ids = os.environ.get("RESEARCH_STATUS_PLAN_IDS", "").split(",")
+    try:
+        return await asyncio.to_thread(research_status, Path(root) if root else None, [v for v in ids if v])
+    except ValueError:
+        raise HTTPException(status_code=503, detail="research status configuration unavailable") from None
 
 
 @app.get("/api/v1/features/core")

@@ -450,9 +450,299 @@ test("authority storage states differ from no readings and do not hide core mark
   await expect(page.locator("#core").getByRole("row")).toHaveCount(8);
 });
 
-test("core feature service outage is explicit without hiding core pairs", async ({page}) => {
- await page.route("**/api/dashboard", route => route.fulfill({json:snapshot}));
- await page.goto("/");
- await expect(page.getByRole("heading",{name:"Core market features"})).toBeVisible();
- await expect(page.getByText("Feature data unavailable. Stored candle history is required.")).toBeVisible();
+test("core feature service outage is explicit without hiding core pairs", async ({
+  page,
+}) => {
+  await page.route("**/api/dashboard", (route) =>
+    route.fulfill({ json: snapshot }),
+  );
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Core market features" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Feature data unavailable. Stored candle history is required.",
+    ),
+  ).toBeVisible();
+});
+
+test("forward research progress displays configured plans, isolates unavailable plans, and distinguishes disabled/unavailable states", async ({
+  page,
+}) => {
+  const planId =
+    "41244a7a15e3b5b220d4e0eb9c819d87247d622d82c4684e8f4e60d14081e7a7";
+  const missingId = "b".repeat(64);
+  let mode = "configured";
+  await page.route("**/api/dashboard", (route) =>
+    route.fulfill({
+      json: {
+        ...snapshot,
+        research:
+          mode === "unavailable"
+            ? { status: "unavailable", data: null }
+            : mode === "disabled"
+              ? {
+                  status: "available",
+                  data: { status: "disabled", research_only: true, plans: [] },
+                }
+              : {
+                  status: "available",
+                  data: {
+                    status: "configured",
+                    research_only: true,
+                    plans: [
+                      {
+                        plan_id: planId,
+                        status: "available",
+                        asset_id: "cex:mexc-usdt-futures:SOL_USDT",
+                        interval: "15m",
+                        decision_start: "2026-11-06T08:45:00+00:00",
+                        decision_end: "2026-11-07T08:45:00+00:00",
+                        total_slots: 97,
+                        as_of: "2026-11-06T09:05:00+00:00",
+                        status_counts: {
+                          scheduled: 95,
+                          awaiting_capture: 0,
+                          pending_outcome: 1,
+                          complete: 1,
+                          complete_excluded: 0,
+                          missed_capture: 0,
+                          incomplete_capture: 0,
+                          incomplete_outcome: 0,
+                        },
+                        feature_status_counts: {
+                          ok: 2,
+                          unavailable: 0,
+                        },
+                      },
+                      {
+                        plan_id: missingId,
+                        status: "unavailable",
+                        asset_id: null,
+                        interval: null,
+                        decision_start: null,
+                        decision_end: null,
+                        total_slots: null,
+                        as_of: null,
+                        status_counts: null,
+                        feature_status_counts: null,
+                      },
+                    ],
+                  },
+                },
+      },
+    }),
+  );
+  await page.goto("/");
+  const panel = page.locator("#research");
+  await expect(panel.getByText("2 plans", { exact: true })).toBeVisible();
+  await expect(panel.getByRole("row")).toHaveCount(3);
+  await expect(panel.getByText("SOL_USDT · 15m")).toBeVisible();
+  await expect(panel.getByText("97 total slots")).toBeVisible();
+  await expect(
+    panel.getByText("1 complete · 0 excluded · 1 pending"),
+  ).toBeVisible();
+  await expect(panel.getByText("2 ok · 0 unavailable")).toBeVisible();
+  await expect(panel.getByText("Journal unavailable")).toBeVisible();
+
+  mode = "disabled";
+  await page.getByRole("button", { name: "Refresh data" }).click();
+  await expect(
+    panel.getByRole("heading", {
+      name: "Forward research status is not configured",
+    }),
+  ).toBeVisible();
+
+  mode = "unavailable";
+  await page.getByRole("button", { name: "Refresh data" }).click();
+  await expect(
+    panel.getByRole("heading", {
+      name: "Forward research status unavailable",
+    }),
+  ).toBeVisible();
+  await expect(page.locator("#core").getByRole("row")).toHaveCount(8);
+});
+
+test("category coverage panel filters overlapping Meme/AI tags, exposes coverage gaps, and isolates service unavailability", async ({
+  page,
+}) => {
+  let available = true;
+  await page.route("**/api/dashboard", (route) =>
+    route.fulfill({
+      json: {
+        ...snapshot,
+        categories: available
+          ? {
+              status: "available",
+              data: {
+                registry_version: "category-registry-v1",
+                filter: "all",
+                research_only: true,
+                signals_enabled: false,
+                summary: {
+                  total_assets: 3,
+                  meme_count: 2,
+                  ai_count: 1,
+                  overlapping_meme_ai_count: 1,
+                  unclassified_count: 1,
+                  coverage_gap_count: 1,
+                  conflict_count: 0,
+                },
+                assets: [
+                  {
+                    asset_id: "cex:mexc-usdt-futures:DOGE_USDT",
+                    asset_class: "cex_futures",
+                    risk_model: "cex_usdt_perpetual",
+                    categories: ["meme"],
+                    category_sources: ["operator:core-market-taxonomy-v1"],
+                    assigned_at: "2026-11-01T00:00:00+00:00",
+                    rationale: "Core meme perpetual",
+                    coverage_gap: false,
+                    conflict: false,
+                  },
+                  {
+                    asset_id: `solana:mint:${"C".repeat(32)}`,
+                    asset_class: "solana_dex",
+                    risk_model: "solana_spl_token",
+                    categories: ["ai", "meme"],
+                    category_sources: ["operator:solana-watchlist-v1"],
+                    assigned_at: "2026-11-01T00:00:00+00:00",
+                    rationale: "Overlapping AI+Meme Solana token",
+                    coverage_gap: false,
+                    conflict: false,
+                  },
+                  {
+                    asset_id: "cex:mexc-usdt-futures:SOL_USDT",
+                    asset_class: "cex_futures",
+                    risk_model: "cex_usdt_perpetual",
+                    categories: ["unclassified"],
+                    category_sources: [],
+                    assigned_at: null,
+                    rationale: null,
+                    coverage_gap: true,
+                    conflict: false,
+                  },
+                ],
+              },
+            }
+          : { status: "unavailable", data: null },
+      },
+    }),
+  );
+  await page.goto("/");
+  const panel = page.locator("#categories");
+  await expect(
+    panel.getByRole("heading", { name: "Meme and AI category coverage" }),
+  ).toBeVisible();
+  await expect(panel.getByRole("row")).toHaveCount(4);
+  await expect(panel.getByText("ai · meme")).toBeVisible();
+  await expect(panel.getByText("coverage gap", { exact: true })).toBeVisible();
+
+  await panel.getByRole("button", { name: "AI sector", exact: true }).click();
+  await expect(panel.getByRole("row")).toHaveCount(2);
+  await expect(panel.getByText(`solana:mint:${"C".repeat(32)}`)).toBeVisible();
+
+  await panel
+    .getByRole("button", { name: "Coverage gaps", exact: true })
+    .click();
+  await expect(panel.getByRole("row")).toHaveCount(2);
+  await expect(
+    panel.getByText("cex:mexc-usdt-futures:SOL_USDT"),
+  ).toBeVisible();
+
+  available = false;
+  await page.getByRole("button", { name: "Refresh data" }).click();
+  await expect(
+    panel.getByRole("heading", { name: "Category registry unavailable" }),
+  ).toBeVisible();
+  await expect(page.locator("#core").getByRole("row")).toHaveCount(8);
+});
+
+
+test("candidate inspector displays point-in-time state machine and risk dimensions", async ({
+  page,
+}) => {
+  const mint = "A".repeat(32);
+  const now = "2026-11-06T12:00:00+00:00";
+  await page.route("**/api/dashboard", (route) =>
+    route.fulfill({ json: snapshot }),
+  );
+  await page.route("**/api/candidate*", (route) =>
+    route.fulfill({
+      json: {
+        status: "available",
+        data: {
+          data_status: "stored_evaluation",
+          mint,
+          as_of: now,
+          token_risk: {
+            rule_version: "solana-token-risk-v1",
+            as_of: now,
+            security_status: "BLOCK",
+            checks: {
+              mint_and_extensions: {
+                status: "PASS",
+                reason: "evaluated",
+                mint_authority_status: "DISABLED",
+                freeze_authority_status: "DISABLED",
+                flags: [],
+              },
+              stage_liquidity: {
+                status: "BLOCK",
+                reason: "critical_low_dex_liquidity",
+                dex_liquidity_usd: "500",
+                sell_depth_2pct_usd: "100",
+                flags: ["critical_low_dex_liquidity"],
+              },
+              holder_concentration: {
+                status: "CAUTION",
+                reason: "elevated_top_1_concentration",
+                top_1_unlocked_pct: "25",
+                top_10_unlocked_pct: "55",
+                flags: ["elevated_top_1_concentration"],
+              },
+            },
+            flags: ["critical_low_dex_liquidity"],
+            vendor_verdict_note: "vendor_score_never_sufficient_for_pass",
+          },
+          candidate_state: {
+            rule_version: "candidate-state-machine-v1",
+            mint,
+            as_of: now,
+            window_end: now,
+            state: "BLOCKED_SECURITY",
+            security_status: "BLOCK",
+            pump_score: null,
+            dump_score: null,
+            dump_warning_groups: [],
+            blocking_gates: ["security_blocked", "critical_low_dex_liquidity"],
+            provisional: true,
+            approved_live_signal: false,
+            alerts_enabled: false,
+          },
+        },
+      },
+    }),
+  );
+  await page.goto("/");
+  const panel = page.locator("#candidate");
+  await expect(
+    panel.getByRole("heading", {
+      name: "Solana candidate risk & state inspector",
+    }),
+  ).toBeVisible();
+  await panel
+    .getByRole("searchbox", { name: "Solana mint address to inspect" })
+    .fill(mint);
+  await panel.getByRole("button", { name: "Inspect candidate" }).click();
+  await expect(
+    panel.getByText("BLOCKED SECURITY", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    panel.getByText("security blocked", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    panel.getByText("critical low dex liquidity").first(),
+  ).toBeVisible();
 });

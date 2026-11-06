@@ -160,6 +160,8 @@ export const profilePollsSchema = z.discriminatedUnion("status", [
 export type Snapshot = {
   fetched_at: string;
   features?: Service<z.infer<typeof featuresSchema>>;
+  research?: Service<z.infer<typeof researchSchema>>;
+  categories?: Service<z.infer<typeof categoriesSchema>>;
   core: Service<z.infer<typeof coreSchema>>;
   btc: Service<z.infer<typeof btcSchema>>;
   collector: Service<z.infer<typeof collectorSchema>>;
@@ -273,17 +275,286 @@ export const authoritiesSchema = z
 const featureDecimal = z.string().regex(/^-?\d+(\.\d+)?$/).nullable();
 export const featuresSchema = z.object({
   data_status: z.enum(["stored_observations", "storage_disabled"]),
-  as_of: z.string().datetime({offset: true}), interval: z.literal("15m"),
-  research_only: z.literal(true), signals_enabled: z.literal(false),
-  markets: z.array(z.object({
-    base: z.enum(["SOL","XRP","DOGE","LINK","SUI","AVAX","ADA"]),
-    status: z.enum(["ok","unavailable"]), reason: z.string().nullable(),
-    feature_version: z.literal("core-features-v1"), provisional: z.literal(true),
-    data_as_of: z.string().datetime({offset:true}).nullable(),
-    relative_strength_reason: z.string().nullable(),
-    features: z.object({atr: featureDecimal, atr_pct: featureDecimal, range_atr: featureDecimal,
-      relative_volume: featureDecimal, relative_strength: featureDecimal,
-      volatility_state: z.enum(["expanding","compressed","normal"]).nullable(),
-      structure_state: z.enum(["breakout_up","breakdown","range"]).nullable()})
-  })).length(7)
+  as_of: z.string().datetime({ offset: true }),
+  interval: z.literal("15m"),
+  research_only: z.literal(true),
+  signals_enabled: z.literal(false),
+  markets: z
+    .array(
+      z.object({
+        base: z.enum(["SOL", "XRP", "DOGE", "LINK", "SUI", "AVAX", "ADA"]),
+        status: z.enum(["ok", "unavailable"]),
+        reason: z.string().nullable(),
+        feature_version: z.literal("core-features-v1"),
+        provisional: z.literal(true),
+        data_as_of: z.string().datetime({ offset: true }).nullable(),
+        relative_strength_reason: z.string().nullable(),
+        features: z.object({
+          atr: featureDecimal,
+          atr_pct: featureDecimal,
+          range_atr: featureDecimal,
+          relative_volume: featureDecimal,
+          relative_strength: featureDecimal,
+          volatility_state: z
+            .enum(["expanding", "compressed", "normal"])
+            .nullable(),
+          structure_state: z
+            .enum(["breakout_up", "breakdown", "range"])
+            .nullable(),
+        }),
+      }),
+    )
+    .length(7),
 });
+
+const planId = z.string().regex(/^[0-9a-f]{64}$/);
+const researchStatusCounts = z
+  .object({
+    scheduled: count,
+    awaiting_capture: count,
+    pending_outcome: count,
+    complete: count,
+    complete_excluded: count,
+    missed_capture: count,
+    incomplete_capture: count,
+    incomplete_outcome: count,
+  })
+  .strict();
+const researchFeatureCounts = z
+  .object({
+    ok: count,
+    unavailable: count,
+  })
+  .strict();
+const researchPlan = z.discriminatedUnion("status", [
+  z
+    .object({
+      plan_id: planId,
+      status: z.literal("available"),
+      asset_id: z
+        .string()
+        .regex(/^cex:mexc-usdt-futures:(SOL|XRP|DOGE|LINK|SUI|AVAX|ADA)_USDT$/),
+      interval: z.enum(["15m", "1h"]),
+      decision_start: timestamp,
+      decision_end: timestamp,
+      total_slots: z.number().int().min(2).max(1000),
+      as_of: timestamp,
+      status_counts: researchStatusCounts,
+      feature_status_counts: researchFeatureCounts,
+    })
+    .strict()
+    .superRefine((plan, ctx) => {
+      const slotTotal = Object.values(plan.status_counts).reduce(
+        (sum, val) => sum + val,
+        0,
+      );
+      const capturedTotal =
+        plan.status_counts.pending_outcome +
+        plan.status_counts.complete +
+        plan.status_counts.complete_excluded +
+        plan.status_counts.incomplete_outcome;
+      const featureTotal =
+        plan.feature_status_counts.ok + plan.feature_status_counts.unavailable;
+      if (
+        slotTotal !== plan.total_slots ||
+        featureTotal !== capturedTotal ||
+        Date.parse(plan.decision_start) >= Date.parse(plan.decision_end)
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          message: "research plan slot or feature counts inconsistent",
+        });
+      }
+    }),
+  z
+    .object({
+      plan_id: planId,
+      status: z.literal("unavailable"),
+      asset_id: z.null(),
+      interval: z.null(),
+      decision_start: z.null(),
+      decision_end: z.null(),
+      total_slots: z.null(),
+      as_of: z.null(),
+      status_counts: z.null(),
+      feature_status_counts: z.null(),
+    })
+    .strict(),
+]);
+export const researchSchema = z
+  .discriminatedUnion("status", [
+    z
+      .object({
+        status: z.literal("disabled"),
+        research_only: z.literal(true),
+        plans: z.array(z.never()),
+      })
+      .strict(),
+    z
+      .object({
+        status: z.literal("configured"),
+        research_only: z.literal(true),
+        plans: z.array(researchPlan).max(10),
+      })
+      .strict(),
+  ])
+  .superRefine((data, ctx) => {
+    if (data.status !== "configured") return;
+    const ids = data.plans.map((p) => p.plan_id);
+    if (new Set(ids).size !== ids.length) {
+      ctx.addIssue({
+        code: "custom",
+        message: "duplicate research plan IDs",
+      });
+    }
+  });
+
+const categoryTag = z.enum(["meme", "ai", "unclassified"]);
+const categoryAsset = z
+  .object({
+    asset_id: z
+      .string()
+      .regex(
+        /^(cex:mexc-usdt-futures:(SOL|XRP|DOGE|LINK|SUI|AVAX|ADA)_USDT|solana:mint:[1-9A-HJ-NP-Za-km-z]{32,44})$/,
+      ),
+    asset_class: z.enum(["cex_futures", "solana_dex"]),
+    risk_model: z.enum(["cex_usdt_perpetual", "solana_spl_token"]),
+    categories: z.array(categoryTag).min(1).max(2),
+    category_sources: z.array(z.string().min(1)),
+    assigned_at: timestamp.nullable(),
+    rationale: z.string().min(1).nullable(),
+    coverage_gap: z.boolean(),
+    conflict: z.boolean(),
+  })
+  .strict()
+  .superRefine((asset, ctx) => {
+    const isCex = asset.asset_id.startsWith("cex:mexc-usdt-futures:");
+    if (
+      (isCex &&
+        (asset.asset_class !== "cex_futures" ||
+          asset.risk_model !== "cex_usdt_perpetual")) ||
+      (!isCex &&
+        (asset.asset_class !== "solana_dex" ||
+          asset.risk_model !== "solana_spl_token"))
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "asset_class and risk_model must match canonical asset_id",
+      });
+    }
+    if (
+      new Set(asset.categories).size !== asset.categories.length ||
+      (asset.categories.includes("unclassified") && asset.categories.length > 1)
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "unclassified cannot combine with sector tags",
+      });
+    }
+    if (
+      asset.conflict &&
+      (!asset.coverage_gap || asset.categories[0] !== "unclassified")
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "conflicting claims must remain unclassified coverage gaps",
+      });
+    }
+    if (
+      !asset.coverage_gap &&
+      (asset.category_sources.length === 0 ||
+        !asset.assigned_at ||
+        !asset.rationale)
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "classified assets require provenance source, timestamp, and rationale",
+      });
+    }
+  });
+export const categoriesSchema = z
+  .object({
+    registry_version: z.literal("category-registry-v1"),
+    filter: z.enum(["all", "meme", "ai", "unclassified"]),
+    research_only: z.literal(true),
+    signals_enabled: z.literal(false),
+    summary: z
+      .object({
+        total_assets: count,
+        meme_count: count,
+        ai_count: count,
+        overlapping_meme_ai_count: count,
+        unclassified_count: count,
+        coverage_gap_count: count,
+        conflict_count: count,
+      })
+      .strict(),
+    assets: z.array(categoryAsset).max(500),
+  })
+  .strict();
+
+const riskStatusEnum = z.enum(["BLOCK", "CAUTION", "UNKNOWN", "PASS"]);
+const candidateStateEnum = z.enum([
+  "DISCOVERED",
+  "WATCHING",
+  "PUMP_WATCH_PROVISIONAL",
+  "DUMP_WARNING",
+  "BLOCKED_SECURITY",
+]);
+
+export const candidateEvaluationSchema = z
+  .object({
+    data_status: z.enum(["stored_evaluation", "storage_disabled"]),
+    mint: key,
+    as_of: timestamp,
+    token_risk: z.object({
+      rule_version: z.literal("solana-token-risk-v1"),
+      as_of: timestamp,
+      security_status: riskStatusEnum,
+      checks: z.object({
+        mint_and_extensions: z.object({
+          status: riskStatusEnum,
+          program: z.string().optional(),
+          reason: z.string(),
+          mint_authority_status: z.string().optional(),
+          freeze_authority_status: z.string().optional(),
+          extensions: z.array(z.any()).optional(),
+          flags: z.array(z.string()),
+        }),
+        stage_liquidity: z.object({
+          status: riskStatusEnum,
+          stage: z.string().optional(),
+          reason: z.string(),
+          dex_liquidity_usd: z.string().nullable().optional(),
+          sell_depth_2pct_usd: z.string().nullable().optional(),
+          flags: z.array(z.string()),
+        }),
+        holder_concentration: z.object({
+          status: riskStatusEnum,
+          reason: z.string(),
+          top_1_unlocked_pct: z.string().nullable().optional(),
+          top_10_unlocked_pct: z.string().nullable().optional(),
+          flags: z.array(z.string()),
+        }),
+      }),
+      flags: z.array(z.string()),
+      vendor_verdict_note: z.literal("vendor_score_never_sufficient_for_pass"),
+    }),
+    candidate_state: z.object({
+      rule_version: z.literal("candidate-state-machine-v1"),
+      mint: key,
+      as_of: timestamp,
+      window_end: timestamp,
+      state: candidateStateEnum,
+      security_status: riskStatusEnum,
+      pump_score: z.string().nullable(),
+      dump_score: z.string().nullable(),
+      dump_warning_groups: z.array(z.any()),
+      blocking_gates: z.array(z.string()),
+      provisional: z.literal(true),
+      approved_live_signal: z.literal(false),
+      alerts_enabled: z.literal(false),
+    }),
+  })
+  .strict();

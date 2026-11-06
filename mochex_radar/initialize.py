@@ -7,6 +7,7 @@ import psycopg
 from mochex_radar.storage import initialize_database
 from mochex_radar.profile_discovery import initialize_discovery_store
 from mochex_radar.authority_checks import initialize_authority_store
+from mochex_radar.candidate_evaluation import initialize_holder_store
 from mochex_radar.alert_store import initialize_alert_store
 
 SCHEMA_VERSION = "pilot-schema-v1"
@@ -17,6 +18,7 @@ def initialize(dsn: str):
     initialize_database(dsn)
     initialize_discovery_store(dsn)
     initialize_authority_store(dsn)
+    initialize_holder_store(dsn)
     initialize_alert_store(dsn)
     with psycopg.connect(dsn, connect_timeout=5) as conn:
         conn.execute("CREATE TABLE IF NOT EXISTS schema_versions (version text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT clock_timestamp())")

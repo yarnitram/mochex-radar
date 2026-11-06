@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "asset_id": "cex:mexc-usdt-futures:SOL_USDT",
+      "categories": ["unclassified"],
+      "category_source": "operator:core-universe-v1",
+      "assigned_at": "2026-11-05T00:00:00+00:00",
+      "rationale": "Core Layer-1 perpetual baseline; not tagged Meme or AI"
+    },
+    {
+      "asset_id": "cex:mexc-usdt-futures:XRP_USDT",
+      "categories": ["unclassified"],
+      "category_source": "operator:core-universe-v1",
+      "assigned_at": "2026-11-05T00:00:00+00:00",
+      "rationale": "Core payment-network perpetual baseline; not tagged Meme or AI"
+    },
+    {
+      "asset_id": "cex:mexc-usdt-futures:DOGE_USDT",
+      "categories": ["meme"],
+      "category_source": "operator:core-universe-v1",
+      "assigned_at": "2026-11-05T00:00:00+00:00",
+      "rationale": "Curated listed Meme futures contract in initial seven-pair universe"
+    },
+    {
+      "asset_id": "cex:mexc-usdt-futures:LINK_USDT",
+      "categories": ["unclassified"],
+      "category_source": "operator:core-universe-v1",
+      "assigned_at": "2026-11-05T00:00:00+00:00",
+      "rationale": "Core oracle infrastructure perpetual; not tagged Meme or AI"
+    },
+    {
+      "asset_id": "cex:mexc-usdt-futures:SUI_USDT",
+      "categories": ["unclassified"],
+      "category_source": "operator:core-universe-v1",
+      "assigned_at": "2026-11-05T00:00:00+00:00",
+      "rationale": "Core Layer-1 perpetual baseline; not tagged Meme or AI"
+    },
+    {
+      "asset_id": "cex:mexc-usdt-futures:AVAX_USDT",
+      "categories": ["unclassified"],
+      "category_source": "operator:core-universe-v1",
+      "assigned_at": "2026-11-05T00:00:00+00:00",
+      "rationale": "Core Layer-1 perpetual baseline; not tagged Meme or AI"
+    },
+    {
+      "asset_id": "cex:mexc-usdt-futures:ADA_USDT",
+      "categories": ["unclassified"],
+      "category_source": "operator:core-universe-v1",
+      "assigned_at": "2026-11-05T00:00:00+00:00",
+      "rationale": "Core Layer-1 perpetual baseline; not tagged Meme or AI"
+    }
+  ]
+}

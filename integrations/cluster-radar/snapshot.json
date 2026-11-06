@@ -26,7 +26,7 @@
     },
     {
       "path": "cluster_radar/intelligence/research.py",
-      "sha256": "446d0a20ecbda0b91dbb12ae787a67abced5cdcd444ecf270ecf1083c153f226"
+      "sha256": "32bfbc62877b3cc3e2286bc78f153fe64887007e51301541198a9d7bebdd112a"
     },
     {
       "path": "cluster_radar/main.py",
@@ -53,6 +53,14 @@
       "sha256": "a593948834ee590ac05d9cd275f6fcbaea99bf43e3f35f1b7bb918e93beb786f"
     },
     {
+      "path": "cluster_radar/providers/solana_history.py",
+      "sha256": "beec7e6a8471c68a01abb9d3edbefa1f3fd2d6e5318f8f909a9228fe15e68c08"
+    },
+    {
+      "path": "cluster_radar/providers/solana_holders.py",
+      "sha256": "51ad755abe77a655cedc6822caf95c1aad4bcd544dcf86abe44f58da1cdfe739"
+    },
+    {
       "path": "cluster_radar/security/__init__.py",
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
@@ -61,8 +69,16 @@
       "sha256": "2f39a5b7ec55d4f8bd8f4fd8f6d7d627d9e39fbdca441738b54a244ef2b8b3a2"
     },
     {
+      "path": "cluster_radar/security/token_risk.py",
+      "sha256": "de2271f12b154ff1f3007c3122489d2c9acbde664b188a375d85c4c22981d6d5"
+    },
+    {
       "path": "cluster_radar/signals/__init__.py",
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cluster_radar/signals/features.py",
+      "sha256": "e906b57ecc27212edcf32518534c9a125ee49cfd8885e24a64726a0926b5863a"
     },
     {
       "path": "cluster_radar/signals/research.py",
@@ -73,10 +89,14 @@
       "sha256": "cfbf14b1194b46e0585a2ac0f25a30146c0ba44e644237a52482e3837b918f70"
     },
     {
+      "path": "cluster_radar/signals/state_machine.py",
+      "sha256": "8f7aae3e5121407d84bfac4f0110de213aefe6303beb94e664809e946b79ab32"
+    },
+    {
       "path": "cluster_radar/storage/__init__.py",
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   ],
-  "upstream_commit": "20a9d5edce573b332d2e9049f284ad16dc989f12",
+  "upstream_commit": "eea449ccd6781ece70afa419140d7486456c8ff8",
   "hash_encoding": "UTF-8 source bytes with CRLF normalized to LF"
 }

@@ -5,8 +5,9 @@ COPY requirements.lock ./
 RUN pip install --no-cache-dir --require-hashes -r requirements.lock && useradd --uid 10001 --create-home radar
 COPY mochex_radar ./mochex_radar
 COPY cluster_radar ./cluster_radar
+COPY config ./config
 # Release worktrees are created with a private umask. Normalize application
-# readability before switching to the non-root runtime user.
-RUN chmod -R a+rX /app
+# readability and create the read-only research mountpoint before switching user.
+RUN mkdir -p /research && chmod -R a+rX /app /research
 USER radar
 CMD ["uvicorn", "mochex_radar.api:app", "--host", "0.0.0.0", "--port", "8000"]
