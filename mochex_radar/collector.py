@@ -28,7 +28,7 @@ async def collect_once(client: httpx.AsyncClient, persist: Persist,
     candles: list[Candle] = []
     failures = 0
     targets = [(market, interval) for market in core_markets() for interval in INTERVALS]
-    targets.append((btc_context_market(), "15m"))
+    targets.extend((btc_context_market(), interval) for interval in INTERVALS)
     for index, (market, interval) in enumerate(targets):
         try:
             candles.append(await fetch(market, interval, client))

@@ -109,8 +109,9 @@ async def test_backfill_visits_all_fifteen_targets_isolates_failures_and_persist
 
     async with httpx.AsyncClient() as client:
         result = await backfill(client, persist, 24, fetch=fetch, pause=pause)
-    assert len(set(visited)) == 15 and all(v[2] == 24 for v in visited) and len(pauses) == 14
-    assert saved == [28] and (result.targets, result.fetched, result.stored, result.failures) == (15, 28, 27, 1)
+    assert len(set(visited)) == 16 and all(v[2] == 24 for v in visited) and len(pauses) == 15
+    assert ("BTC_USDT", "1h", 24) in visited
+    assert saved == [30] and (result.targets, result.fetched, result.stored, result.failures) == (16, 30, 29, 1)
     assert len(core_markets()) == 7
 
 
@@ -124,7 +125,7 @@ async def test_backfill_bounds_and_all_failed_does_not_persist():
 
     async with httpx.AsyncClient() as client:
         result = await backfill(client, persist, 5, fetch=fail, pause=lambda s: _noop())
-        assert result.failures == 15 and result.stored == 0
+        assert result.failures == 16 and result.stored == 0
         for bad in (0, MAX_CANDLES + 1):
             with pytest.raises(ValueError):
                 await backfill(client, persist, bad, fetch=fail)
