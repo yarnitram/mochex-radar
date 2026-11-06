@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Snapshot } from "@/lib/contracts";
 import FeaturesPanel from "./features-panel";
 import ResearchPanel from "./research-panel";
+import CategoriesPanel from "./categories-panel";
 import DiscoveryPanel from "./discovery-panel";
 import AuthorityPanel from "./authority-panel";
 
@@ -395,6 +396,7 @@ export default function Dashboard() {
         </section>
         <FeaturesPanel snapshot={snapshot} outdated={failed} />
         <ResearchPanel snapshot={snapshot} outdated={failed} />
+        <CategoriesPanel snapshot={snapshot} outdated={failed} />
         <AuthorityPanel snapshot={snapshot} outdated={failed} />
         <DiscoveryPanel snapshot={snapshot} outdated={failed} />
         <section className="panel" id="dex">

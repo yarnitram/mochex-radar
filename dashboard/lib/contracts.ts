@@ -161,6 +161,7 @@ export type Snapshot = {
   fetched_at: string;
   features?: Service<z.infer<typeof featuresSchema>>;
   research?: Service<z.infer<typeof researchSchema>>;
+  categories?: Service<z.infer<typeof categoriesSchema>>;
   core: Service<z.infer<typeof coreSchema>>;
   btc: Service<z.infer<typeof btcSchema>>;
   collector: Service<z.infer<typeof collectorSchema>>;
@@ -274,19 +275,36 @@ export const authoritiesSchema = z
 const featureDecimal = z.string().regex(/^-?\d+(\.\d+)?$/).nullable();
 export const featuresSchema = z.object({
   data_status: z.enum(["stored_observations", "storage_disabled"]),
-  as_of: z.string().datetime({offset: true}), interval: z.literal("15m"),
-  research_only: z.literal(true), signals_enabled: z.literal(false),
-  markets: z.array(z.object({
-    base: z.enum(["SOL","XRP","DOGE","LINK","SUI","AVAX","ADA"]),
-    status: z.enum(["ok","unavailable"]), reason: z.string().nullable(),
-    feature_version: z.literal("core-features-v1"), provisional: z.literal(true),
-    data_as_of: z.string().datetime({offset:true}).nullable(),
-    relative_strength_reason: z.string().nullable(),
-    features: z.object({atr: featureDecimal, atr_pct: featureDecimal, range_atr: featureDecimal,
-      relative_volume: featureDecimal, relative_strength: featureDecimal,
-      volatility_state: z.enum(["expanding","compressed","normal"]).nullable(),
-      structure_state: z.enum(["breakout_up","breakdown","range"]).nullable()})
-  })).length(7)
+  as_of: z.string().datetime({ offset: true }),
+  interval: z.literal("15m"),
+  research_only: z.literal(true),
+  signals_enabled: z.literal(false),
+  markets: z
+    .array(
+      z.object({
+        base: z.enum(["SOL", "XRP", "DOGE", "LINK", "SUI", "AVAX", "ADA"]),
+        status: z.enum(["ok", "unavailable"]),
+        reason: z.string().nullable(),
+        feature_version: z.literal("core-features-v1"),
+        provisional: z.literal(true),
+        data_as_of: z.string().datetime({ offset: true }).nullable(),
+        relative_strength_reason: z.string().nullable(),
+        features: z.object({
+          atr: featureDecimal,
+          atr_pct: featureDecimal,
+          range_atr: featureDecimal,
+          relative_volume: featureDecimal,
+          relative_strength: featureDecimal,
+          volatility_state: z
+            .enum(["expanding", "compressed", "normal"])
+            .nullable(),
+          structure_state: z
+            .enum(["breakout_up", "breakdown", "range"])
+            .nullable(),
+        }),
+      }),
+    )
+    .length(7),
 });
 
 const planId = z.string().regex(/^[0-9a-f]{64}$/);
@@ -390,3 +408,88 @@ export const researchSchema = z
       });
     }
   });
+
+const categoryTag = z.enum(["meme", "ai", "unclassified"]);
+const categoryAsset = z
+  .object({
+    asset_id: z
+      .string()
+      .regex(
+        /^(cex:mexc-usdt-futures:(SOL|XRP|DOGE|LINK|SUI|AVAX|ADA)_USDT|solana:mint:[1-9A-HJ-NP-Za-km-z]{32,44})$/,
+      ),
+    asset_class: z.enum(["cex_futures", "solana_dex"]),
+    risk_model: z.enum(["cex_usdt_perpetual", "solana_spl_token"]),
+    categories: z.array(categoryTag).min(1).max(2),
+    category_sources: z.array(z.string().min(1)),
+    assigned_at: timestamp.nullable(),
+    rationale: z.string().min(1).nullable(),
+    coverage_gap: z.boolean(),
+    conflict: z.boolean(),
+  })
+  .strict()
+  .superRefine((asset, ctx) => {
+    const isCex = asset.asset_id.startsWith("cex:mexc-usdt-futures:");
+    if (
+      (isCex &&
+        (asset.asset_class !== "cex_futures" ||
+          asset.risk_model !== "cex_usdt_perpetual")) ||
+      (!isCex &&
+        (asset.asset_class !== "solana_dex" ||
+          asset.risk_model !== "solana_spl_token"))
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "asset_class and risk_model must match canonical asset_id",
+      });
+    }
+    if (
+      new Set(asset.categories).size !== asset.categories.length ||
+      (asset.categories.includes("unclassified") && asset.categories.length > 1)
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "unclassified cannot combine with sector tags",
+      });
+    }
+    if (
+      asset.conflict &&
+      (!asset.coverage_gap || asset.categories[0] !== "unclassified")
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "conflicting claims must remain unclassified coverage gaps",
+      });
+    }
+    if (
+      !asset.coverage_gap &&
+      (asset.category_sources.length === 0 ||
+        !asset.assigned_at ||
+        !asset.rationale)
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "classified assets require provenance source, timestamp, and rationale",
+      });
+    }
+  });
+export const categoriesSchema = z
+  .object({
+    registry_version: z.literal("category-registry-v1"),
+    filter: z.enum(["all", "meme", "ai", "unclassified"]),
+    research_only: z.literal(true),
+    signals_enabled: z.literal(false),
+    summary: z
+      .object({
+        total_assets: count,
+        meme_count: count,
+        ai_count: count,
+        overlapping_meme_ai_count: count,
+        unclassified_count: count,
+        coverage_gap_count: count,
+        conflict_count: count,
+      })
+      .strict(),
+    assets: z.array(categoryAsset).max(500),
+  })
+  .strict();

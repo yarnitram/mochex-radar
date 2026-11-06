@@ -5,6 +5,9 @@ import {
   catalogSchema,
   profilePollsSchema,
   authoritiesSchema,
+  featuresSchema,
+  researchSchema,
+  categoriesSchema,
 } from "../lib/contracts.ts";
 import { catalog, polls } from "./discovery-fixture.mjs";
 import { authorities } from "./authority-fixture.mjs";
@@ -114,16 +117,48 @@ test("invalid counts or unknown states cannot masquerade as valid delivery healt
   }
 });
 
-import { featuresSchema } from "../lib/contracts.ts";
 test("core features preserve unknowns and prohibit enabled signals", () => {
- const data={data_status:"storage_disabled",as_of:"2026-01-01T12:00:00Z",interval:"15m",research_only:true,signals_enabled:false,
- markets:["SOL","XRP","DOGE","LINK","SUI","AVAX","ADA"].map(base=>({base,status:"unavailable",reason:"insufficient_lookback",feature_version:"core-features-v1",provisional:true,data_as_of:null,relative_strength_reason:null,features:{atr:null,atr_pct:null,range_atr:null,relative_volume:null,relative_strength:null,volatility_state:null,structure_state:null}}))};
- assert.equal(featuresSchema.parse(data).markets[0].features.relative_volume,null);
- assert.equal(featuresSchema.safeParse({...data,signals_enabled:true}).success,false);
- assert.equal(featuresSchema.safeParse({...data,markets:[]}).success,false);
+  const data = {
+    data_status: "storage_disabled",
+    as_of: "2026-01-01T12:00:00Z",
+    interval: "15m",
+    research_only: true,
+    signals_enabled: false,
+    markets: ["SOL", "XRP", "DOGE", "LINK", "SUI", "AVAX", "ADA"].map(
+      (base) => ({
+        base,
+        status: "unavailable",
+        reason: "insufficient_lookback",
+        feature_version: "core-features-v1",
+        provisional: true,
+        data_as_of: null,
+        relative_strength_reason: null,
+        features: {
+          atr: null,
+          atr_pct: null,
+          range_atr: null,
+          relative_volume: null,
+          relative_strength: null,
+          volatility_state: null,
+          structure_state: null,
+        },
+      }),
+    ),
+  };
+  assert.equal(
+    featuresSchema.parse(data).markets[0].features.relative_volume,
+    null,
+  );
+  assert.equal(
+    featuresSchema.safeParse({ ...data, signals_enabled: true }).success,
+    false,
+  );
+  assert.equal(
+    featuresSchema.safeParse({ ...data, markets: [] }).success,
+    false,
+  );
 });
 
-import { researchSchema } from "../lib/contracts.ts";
 test("research status contract enforces count invariants, isolates unavailable plans, and rejects extra fields", () => {
   const planId = "4".repeat(64);
   const missingId = "b".repeat(64);
@@ -197,5 +232,91 @@ test("research status contract enforces count invariants, isolates unavailable p
     },
   ]) {
     assert.equal(researchSchema.safeParse(invalid).success, false);
+  }
+});
+
+test("category registry contract preserves distinct risk models, overlapping tags, and conflict coverage gaps", () => {
+  const valid = {
+    registry_version: "category-registry-v1",
+    filter: "all",
+    research_only: true,
+    signals_enabled: false,
+    summary: {
+      total_assets: 3,
+      meme_count: 2,
+      ai_count: 1,
+      overlapping_meme_ai_count: 1,
+      unclassified_count: 1,
+      coverage_gap_count: 1,
+      conflict_count: 0,
+    },
+    assets: [
+      {
+        asset_id: "cex:mexc-usdt-futures:DOGE_USDT",
+        asset_class: "cex_futures",
+        risk_model: "cex_usdt_perpetual",
+        categories: ["meme"],
+        category_sources: ["operator:core-market-taxonomy-v1"],
+        assigned_at: "2026-11-01T00:00:00+00:00",
+        rationale: "Core meme perpetual",
+        coverage_gap: false,
+        conflict: false,
+      },
+      {
+        asset_id: `solana:mint:${"A".repeat(32)}`,
+        asset_class: "solana_dex",
+        risk_model: "solana_spl_token",
+        categories: ["ai", "meme"],
+        category_sources: ["operator:solana-watchlist-v1"],
+        assigned_at: "2026-11-01T00:00:00+00:00",
+        rationale: "Overlapping AI+Meme token",
+        coverage_gap: false,
+        conflict: false,
+      },
+      {
+        asset_id: "cex:mexc-usdt-futures:SOL_USDT",
+        asset_class: "cex_futures",
+        risk_model: "cex_usdt_perpetual",
+        categories: ["unclassified"],
+        category_sources: [],
+        assigned_at: null,
+        rationale: null,
+        coverage_gap: true,
+        conflict: false,
+      },
+    ],
+  };
+  assert.equal(categoriesSchema.parse(valid).assets.length, 3);
+  for (const invalid of [
+    { ...valid, signals_enabled: true },
+    {
+      ...valid,
+      assets: [
+        {
+          ...valid.assets[0],
+          risk_model: "solana_spl_token",
+        },
+      ],
+    },
+    {
+      ...valid,
+      assets: [
+        {
+          ...valid.assets[0],
+          categories: ["meme", "unclassified"],
+        },
+      ],
+    },
+    {
+      ...valid,
+      assets: [
+        {
+          ...valid.assets[0],
+          conflict: true,
+        },
+      ],
+    },
+  ]) {
+    assert.equal(categoriesSchema.safeParse(invalid).success, false);
   }
 });

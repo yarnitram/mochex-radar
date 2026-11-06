@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   featuresSchema,
   researchSchema,
+  categoriesSchema,
   btcSchema,
   collectorSchema,
   coreSchema,
@@ -40,6 +41,7 @@ export async function GET() {
   const [
     features,
     research,
+    categories,
     core,
     btc,
     collector,
@@ -51,6 +53,7 @@ export async function GET() {
   ] = await Promise.all([
     read("/api/v1/features/core", featuresSchema),
     read("/api/v1/research/status", researchSchema),
+    read("/api/v1/categories/registry", categoriesSchema),
     read("/api/v1/dashboard/core", coreSchema),
     read("/api/v1/market-context/btc", btcSchema),
     read("/api/v1/collector/status", collectorSchema),
@@ -64,6 +67,7 @@ export async function GET() {
     {
       features,
       research,
+      categories,
       fetched_at: new Date().toISOString(),
       core,
       btc,

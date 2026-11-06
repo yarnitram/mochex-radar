@@ -450,17 +450,28 @@ test("authority storage states differ from no readings and do not hide core mark
   await expect(page.locator("#core").getByRole("row")).toHaveCount(8);
 });
 
-test("core feature service outage is explicit without hiding core pairs", async ({page}) => {
- await page.route("**/api/dashboard", route => route.fulfill({json:snapshot}));
- await page.goto("/");
- await expect(page.getByRole("heading",{name:"Core market features"})).toBeVisible();
- await expect(page.getByText("Feature data unavailable. Stored candle history is required.")).toBeVisible();
+test("core feature service outage is explicit without hiding core pairs", async ({
+  page,
+}) => {
+  await page.route("**/api/dashboard", (route) =>
+    route.fulfill({ json: snapshot }),
+  );
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Core market features" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Feature data unavailable. Stored candle history is required.",
+    ),
+  ).toBeVisible();
 });
 
 test("forward research progress displays configured plans, isolates unavailable plans, and distinguishes disabled/unavailable states", async ({
   page,
 }) => {
-  const planId = "41244a7a15e3b5b220d4e0eb9c819d87247d622d82c4684e8f4e60d14081e7a7";
+  const planId =
+    "41244a7a15e3b5b220d4e0eb9c819d87247d622d82c4684e8f4e60d14081e7a7";
   const missingId = "b".repeat(64);
   let mode = "configured";
   await page.route("**/api/dashboard", (route) =>
@@ -549,6 +560,101 @@ test("forward research progress displays configured plans, isolates unavailable 
     panel.getByRole("heading", {
       name: "Forward research status unavailable",
     }),
+  ).toBeVisible();
+  await expect(page.locator("#core").getByRole("row")).toHaveCount(8);
+});
+
+test("category coverage panel filters overlapping Meme/AI tags, exposes coverage gaps, and isolates service unavailability", async ({
+  page,
+}) => {
+  let available = true;
+  await page.route("**/api/dashboard", (route) =>
+    route.fulfill({
+      json: {
+        ...snapshot,
+        categories: available
+          ? {
+              status: "available",
+              data: {
+                registry_version: "category-registry-v1",
+                filter: "all",
+                research_only: true,
+                signals_enabled: false,
+                summary: {
+                  total_assets: 3,
+                  meme_count: 2,
+                  ai_count: 1,
+                  overlapping_meme_ai_count: 1,
+                  unclassified_count: 1,
+                  coverage_gap_count: 1,
+                  conflict_count: 0,
+                },
+                assets: [
+                  {
+                    asset_id: "cex:mexc-usdt-futures:DOGE_USDT",
+                    asset_class: "cex_futures",
+                    risk_model: "cex_usdt_perpetual",
+                    categories: ["meme"],
+                    category_sources: ["operator:core-market-taxonomy-v1"],
+                    assigned_at: "2026-11-01T00:00:00+00:00",
+                    rationale: "Core meme perpetual",
+                    coverage_gap: false,
+                    conflict: false,
+                  },
+                  {
+                    asset_id: `solana:mint:${"C".repeat(32)}`,
+                    asset_class: "solana_dex",
+                    risk_model: "solana_spl_token",
+                    categories: ["ai", "meme"],
+                    category_sources: ["operator:solana-watchlist-v1"],
+                    assigned_at: "2026-11-01T00:00:00+00:00",
+                    rationale: "Overlapping AI+Meme Solana token",
+                    coverage_gap: false,
+                    conflict: false,
+                  },
+                  {
+                    asset_id: "cex:mexc-usdt-futures:SOL_USDT",
+                    asset_class: "cex_futures",
+                    risk_model: "cex_usdt_perpetual",
+                    categories: ["unclassified"],
+                    category_sources: [],
+                    assigned_at: null,
+                    rationale: null,
+                    coverage_gap: true,
+                    conflict: false,
+                  },
+                ],
+              },
+            }
+          : { status: "unavailable", data: null },
+      },
+    }),
+  );
+  await page.goto("/");
+  const panel = page.locator("#categories");
+  await expect(
+    panel.getByRole("heading", { name: "Meme and AI category coverage" }),
+  ).toBeVisible();
+  await expect(panel.getByRole("row")).toHaveCount(4);
+  await expect(panel.getByText("ai · meme")).toBeVisible();
+  await expect(panel.getByText("coverage gap", { exact: true })).toBeVisible();
+
+  await panel.getByRole("button", { name: "AI sector", exact: true }).click();
+  await expect(panel.getByRole("row")).toHaveCount(2);
+  await expect(panel.getByText(`solana:mint:${"C".repeat(32)}`)).toBeVisible();
+
+  await panel
+    .getByRole("button", { name: "Coverage gaps", exact: true })
+    .click();
+  await expect(panel.getByRole("row")).toHaveCount(2);
+  await expect(
+    panel.getByText("cex:mexc-usdt-futures:SOL_USDT"),
+  ).toBeVisible();
+
+  available = false;
+  await page.getByRole("button", { name: "Refresh data" }).click();
+  await expect(
+    panel.getByRole("heading", { name: "Category registry unavailable" }),
   ).toBeVisible();
   await expect(page.locator("#core").getByRole("row")).toHaveCount(8);
 });

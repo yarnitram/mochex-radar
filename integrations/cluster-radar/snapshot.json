@@ -53,6 +53,14 @@
       "sha256": "a593948834ee590ac05d9cd275f6fcbaea99bf43e3f35f1b7bb918e93beb786f"
     },
     {
+      "path": "cluster_radar/providers/solana_history.py",
+      "sha256": "beec7e6a8471c68a01abb9d3edbefa1f3fd2d6e5318f8f909a9228fe15e68c08"
+    },
+    {
+      "path": "cluster_radar/providers/solana_holders.py",
+      "sha256": "51ad755abe77a655cedc6822caf95c1aad4bcd544dcf86abe44f58da1cdfe739"
+    },
+    {
       "path": "cluster_radar/security/__init__.py",
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
@@ -89,6 +97,6 @@
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   ],
-  "upstream_commit": "d6641556b4f437cc5749f4e71634066cf33620f9",
+  "upstream_commit": "eea449ccd6781ece70afa419140d7486456c8ff8",
   "hash_encoding": "UTF-8 source bytes with CRLF normalized to LF"
 }
