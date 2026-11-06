@@ -285,6 +285,13 @@ def evaluate_stored_candidate(
     mint_check = _evaluate_stored_authority_check(auth_rows, cutoff)
     liquidity_check = evaluate_stage_liquidity(_build_liquidity_evidence(dex_rows), as_of=cutoff)
     holder_check = evaluate_holder_concentration(_build_holder_evidence(hold_rows), as_of=cutoff)
+    # Largest token accounts do not establish controller ownership or lock state.
+    # Concentration warnings remain useful, but low account shares cannot certify
+    # dispersed, unlocked wallet ownership.
+    if holder_check["status"] == SecurityStatus.PASS.value:
+        holder_check = {**holder_check, "status": SecurityStatus.UNKNOWN.value,
+                        "reason": "token_account_only_ownership_and_locks_unverified",
+                        "flags": [*holder_check.get("flags", []), "holder_ownership_unverified"]}
 
     checks = {
         "mint_and_extensions": mint_check,

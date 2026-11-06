@@ -373,7 +373,7 @@ export default function CandidateInspector({
                   <td>
                     <strong>Holder concentration</strong>
                     <small className="provenance">
-                      Top 1 &amp; Top 10 unlocked
+                      Top token accounts (ownership and locks unverified)
                     </small>
                   </td>
                   <td>

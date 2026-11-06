@@ -91,7 +91,8 @@ def test_evaluate_stored_candidate_synthesizes_blocked_and_partial_evidence(monk
     )
     partial = evaluate_stored_candidate("postgresql://unused", MINT, as_of=as_of)
     assert partial["token_risk"]["checks"]["mint_and_extensions"]["status"] == "PASS"
-    assert partial["token_risk"]["checks"]["holder_concentration"]["status"] == "PASS"
+    assert partial["token_risk"]["checks"]["holder_concentration"]["status"] == "UNKNOWN"
+    assert partial["token_risk"]["checks"]["holder_concentration"]["reason"] == "token_account_only_ownership_and_locks_unverified"
     assert partial["token_risk"]["checks"]["stage_liquidity"]["status"] == "UNKNOWN"
     assert (
         partial["token_risk"]["checks"]["stage_liquidity"]["reason"]
