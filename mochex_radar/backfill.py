@@ -38,7 +38,7 @@ async def backfill(client: httpx.AsyncClient, persist: Persist, count: int,
     if not 1 <= count <= MAX_CANDLES:
         raise ValueError(f"count must be 1..{MAX_CANDLES}")
     targets = [(market, interval) for market in core_markets() for interval in INTERVALS]
-    targets.append((btc_context_market(), "15m"))
+    targets.extend((btc_context_market(), interval) for interval in INTERVALS)
     candles: list[Candle] = []
     failures = 0
     for index, (market, interval) in enumerate(targets):

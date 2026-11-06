@@ -23,7 +23,7 @@ URL = "wss://contract.mexc.com/edge"
 MARKETS = {market.market_id: market for market in (*core_markets(), btc_context_market())}
 PROVIDER_INTERVALS = {value[0]: (key, value[1]) for key, value in INTERVALS.items()}
 TARGETS = [(market, interval) for market in core_markets() for interval in INTERVALS]
-TARGETS.append((btc_context_market(), "15m"))
+TARGETS.extend((btc_context_market(), interval) for interval in INTERVALS)
 TARGET_KEYS = {(market.market_id, interval) for market, interval in TARGETS}
 
 
