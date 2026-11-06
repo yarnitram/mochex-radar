@@ -8,6 +8,7 @@ import {
   featuresSchema,
   researchSchema,
   categoriesSchema,
+  candidateEvaluationSchema,
 } from "../lib/contracts.ts";
 import { catalog, polls } from "./discovery-fixture.mjs";
 import { authorities } from "./authority-fixture.mjs";
@@ -318,5 +319,72 @@ test("category registry contract preserves distinct risk models, overlapping tag
     },
   ]) {
     assert.equal(categoriesSchema.safeParse(invalid).success, false);
+  }
+});
+
+test("candidate evaluation contract enforces fail-closed risk and signals disabled", () => {
+  const mint = "A".repeat(32);
+  const now = "2026-11-06T12:00:00+00:00";
+  const valid = {
+    data_status: "stored_evaluation",
+    mint,
+    as_of: now,
+    token_risk: {
+      rule_version: "solana-token-risk-v1",
+      as_of: now,
+      security_status: "BLOCK",
+      checks: {
+        mint_and_extensions: {
+          status: "PASS",
+          program: "spl-token",
+          reason: "evaluated",
+          mint_authority_status: "DISABLED",
+          freeze_authority_status: "DISABLED",
+          extensions: [],
+          flags: [],
+        },
+        stage_liquidity: {
+          status: "BLOCK",
+          stage: "DEX",
+          reason: "evaluated",
+          dex_liquidity_usd: "500.0",
+          sell_depth_2pct_usd: "100.0",
+          flags: ["critical_low_dex_liquidity", "critical_low_sell_depth"],
+        },
+        holder_concentration: {
+          status: "CAUTION",
+          reason: "evaluated",
+          top_1_unlocked_pct: "25.0",
+          top_10_unlocked_pct: "55.0",
+          flags: ["elevated_top_1_concentration"],
+        },
+      },
+      flags: ["critical_low_dex_liquidity", "critical_low_sell_depth"],
+      vendor_verdict_note: "vendor_score_never_sufficient_for_pass",
+    },
+    candidate_state: {
+      rule_version: "candidate-state-machine-v1",
+      mint,
+      as_of: now,
+      window_end: now,
+      state: "BLOCKED_SECURITY",
+      security_status: "BLOCK",
+      pump_score: null,
+      dump_score: null,
+      dump_warning_groups: [],
+      blocking_gates: ["security_blocked", "critical_low_dex_liquidity"],
+      provisional: true,
+      approved_live_signal: false,
+      alerts_enabled: false,
+    },
+  };
+  assert.equal(candidateEvaluationSchema.parse(valid).mint, mint);
+  for (const invalid of [
+    { ...valid, candidate_state: { ...valid.candidate_state, approved_live_signal: true } },
+    { ...valid, candidate_state: { ...valid.candidate_state, alerts_enabled: true } },
+    { ...valid, token_risk: { ...valid.token_risk, vendor_verdict_note: "vendor_score_trusted" } },
+    { ...valid, candidate_state: { ...valid.candidate_state, state: "INVALID_STATE" } },
+  ]) {
+    assert.equal(candidateEvaluationSchema.safeParse(invalid).success, false);
   }
 });

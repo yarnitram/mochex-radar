@@ -658,3 +658,91 @@ test("category coverage panel filters overlapping Meme/AI tags, exposes coverage
   ).toBeVisible();
   await expect(page.locator("#core").getByRole("row")).toHaveCount(8);
 });
+
+
+test("candidate inspector displays point-in-time state machine and risk dimensions", async ({
+  page,
+}) => {
+  const mint = "A".repeat(32);
+  const now = "2026-11-06T12:00:00+00:00";
+  await page.route("**/api/dashboard", (route) =>
+    route.fulfill({ json: snapshot }),
+  );
+  await page.route("**/api/candidate*", (route) =>
+    route.fulfill({
+      json: {
+        status: "available",
+        data: {
+          data_status: "stored_evaluation",
+          mint,
+          as_of: now,
+          token_risk: {
+            rule_version: "solana-token-risk-v1",
+            as_of: now,
+            security_status: "BLOCK",
+            checks: {
+              mint_and_extensions: {
+                status: "PASS",
+                reason: "evaluated",
+                mint_authority_status: "DISABLED",
+                freeze_authority_status: "DISABLED",
+                flags: [],
+              },
+              stage_liquidity: {
+                status: "BLOCK",
+                reason: "critical_low_dex_liquidity",
+                dex_liquidity_usd: "500",
+                sell_depth_2pct_usd: "100",
+                flags: ["critical_low_dex_liquidity"],
+              },
+              holder_concentration: {
+                status: "CAUTION",
+                reason: "elevated_top_1_concentration",
+                top_1_unlocked_pct: "25",
+                top_10_unlocked_pct: "55",
+                flags: ["elevated_top_1_concentration"],
+              },
+            },
+            flags: ["critical_low_dex_liquidity"],
+            vendor_verdict_note: "vendor_score_never_sufficient_for_pass",
+          },
+          candidate_state: {
+            rule_version: "candidate-state-machine-v1",
+            mint,
+            as_of: now,
+            window_end: now,
+            state: "BLOCKED_SECURITY",
+            security_status: "BLOCK",
+            pump_score: null,
+            dump_score: null,
+            dump_warning_groups: [],
+            blocking_gates: ["security_blocked", "critical_low_dex_liquidity"],
+            provisional: true,
+            approved_live_signal: false,
+            alerts_enabled: false,
+          },
+        },
+      },
+    }),
+  );
+  await page.goto("/");
+  const panel = page.locator("#candidate");
+  await expect(
+    panel.getByRole("heading", {
+      name: "Solana candidate risk & state inspector",
+    }),
+  ).toBeVisible();
+  await panel
+    .getByRole("searchbox", { name: "Solana mint address to inspect" })
+    .fill(mint);
+  await panel.getByRole("button", { name: "Inspect candidate" }).click();
+  await expect(
+    panel.getByText("BLOCKED SECURITY", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    panel.getByText("security blocked", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    panel.getByText("critical low dex liquidity", { exact: false }),
+  ).toBeVisible();
+});

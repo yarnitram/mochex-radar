@@ -493,3 +493,68 @@ export const categoriesSchema = z
     assets: z.array(categoryAsset).max(500),
   })
   .strict();
+
+const riskStatusEnum = z.enum(["BLOCK", "CAUTION", "UNKNOWN", "PASS"]);
+const candidateStateEnum = z.enum([
+  "DISCOVERED",
+  "WATCHING",
+  "PUMP_WATCH_PROVISIONAL",
+  "DUMP_WARNING",
+  "BLOCKED_SECURITY",
+]);
+
+export const candidateEvaluationSchema = z
+  .object({
+    data_status: z.enum(["stored_evaluation", "storage_disabled"]),
+    mint: key,
+    as_of: timestamp,
+    token_risk: z.object({
+      rule_version: z.literal("solana-token-risk-v1"),
+      as_of: timestamp,
+      security_status: riskStatusEnum,
+      checks: z.object({
+        mint_and_extensions: z.object({
+          status: riskStatusEnum,
+          program: z.string().optional(),
+          reason: z.string(),
+          mint_authority_status: z.string().optional(),
+          freeze_authority_status: z.string().optional(),
+          extensions: z.array(z.any()).optional(),
+          flags: z.array(z.string()),
+        }),
+        stage_liquidity: z.object({
+          status: riskStatusEnum,
+          stage: z.string().optional(),
+          reason: z.string(),
+          dex_liquidity_usd: z.string().nullable().optional(),
+          sell_depth_2pct_usd: z.string().nullable().optional(),
+          flags: z.array(z.string()),
+        }),
+        holder_concentration: z.object({
+          status: riskStatusEnum,
+          reason: z.string(),
+          top_1_unlocked_pct: z.string().nullable().optional(),
+          top_10_unlocked_pct: z.string().nullable().optional(),
+          flags: z.array(z.string()),
+        }),
+      }),
+      flags: z.array(z.string()),
+      vendor_verdict_note: z.literal("vendor_score_never_sufficient_for_pass"),
+    }),
+    candidate_state: z.object({
+      rule_version: z.literal("candidate-state-machine-v1"),
+      mint: key,
+      as_of: timestamp,
+      window_end: timestamp,
+      state: candidateStateEnum,
+      security_status: riskStatusEnum,
+      pump_score: z.string().nullable(),
+      dump_score: z.string().nullable(),
+      dump_warning_groups: z.array(z.any()),
+      blocking_gates: z.array(z.string()),
+      provisional: z.literal(true),
+      approved_live_signal: z.literal(false),
+      alerts_enabled: z.literal(false),
+    }),
+  })
+  .strict();
