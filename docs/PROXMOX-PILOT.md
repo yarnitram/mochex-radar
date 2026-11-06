@@ -47,6 +47,7 @@ POSTGRES_PASSWORD=<GENERATED_DATABASE_PASSWORD>
 DATABASE_URL=postgresql://radar:<URL_ENCODED_SAME_PASSWORD>@db:5432/radar
 RADAR_API_TOKEN=<INDEPENDENT_GENERATED_API_TOKEN>
 RADAR_API_PORT=8000
+RADAR_DASHBOARD_BIND_HOST=127.0.0.1
 RADAR_DASHBOARD_PORT=3000
 ```
 
@@ -75,9 +76,12 @@ queries remain available. Compose waits for running/healthy services, as documen
 by [Docker](https://docs.docker.com/reference/cli/docker/compose/up/).
 
 Connect privately through SSH forwarding, for example forward local 3110 to the
-guest's loopback 3000. The dashboard API token is forwarded by its server, never
-placed in a NEXT_PUBLIC variable or browser response. No public proxy/login/TLS
-configuration is included in this pilot. Verify seven registered pairs, initial
+guest's loopback 3000. For trusted-LAN access only, set
+`RADAR_DASHBOARD_BIND_HOST=0.0.0.0`, restrict TCP/3000 in the guest firewall, and
+use `http://<guest-ip>:3000`; do not expose it to the public internet. The
+dashboard API token is forwarded by its server, never placed in a NEXT_PUBLIC
+variable or browser response. No public proxy/login/TLS configuration is included
+in this pilot. Verify seven registered pairs, initial
 missing/stale states, collector health and then growing stored observations. Do
 not treat an empty but healthy deployment as validated signals.
 
