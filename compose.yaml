@@ -83,7 +83,7 @@ services:
       RADAR_API_ORIGIN: http://api:8000
       RADAR_API_TOKEN: ${RADAR_API_TOKEN:-}
     ports:
-      - "127.0.0.1:${RADAR_DASHBOARD_PORT:-3000}:3000"
+      - "${RADAR_DASHBOARD_BIND_HOST:-127.0.0.1}:${RADAR_DASHBOARD_PORT:-3000}:3000"
     depends_on:
       api:
         condition: service_healthy
