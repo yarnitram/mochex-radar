@@ -28,6 +28,7 @@ from mochex_radar.provider_budget import initialize_budget_store, PersistentDexS
 from mochex_radar.dex_worker import recent_scans
 from mochex_radar.dashboard import core_snapshot
 from mochex_radar.research_status import research_status
+from mochex_radar.categories import DEFAULT_REGISTRY_PATH, build_category_view, load_category_registry
 from mochex_radar.alert_store import outbox_status
 from mochex_radar.profile_discovery import recent_polls, discovered_catalog
 from mochex_radar.authority_checks import PersistentAuthorities, authority_history, authority_snapshot, initialize_authority_store, store_authority
@@ -225,6 +226,18 @@ async def dashboard_core():
         return await asyncio.to_thread(core_snapshot, os.environ.get("DATABASE_URL"))
     except psycopg.Error as exc:
         raise HTTPException(status_code=503, detail="stored core observations unavailable") from exc
+
+
+@app.get("/api/v1/categories/registry")
+async def category_registry(category: str = "all"):
+    if category not in ("all", "meme", "ai", "unclassified"):
+        raise HTTPException(status_code=422, detail="category must be all, meme, ai, or unclassified")
+    path = Path(os.environ.get("CATEGORY_REGISTRY_PATH") or DEFAULT_REGISTRY_PATH)
+    try:
+        registry = await asyncio.to_thread(load_category_registry, path)
+        return build_category_view(registry, category_filter=category)
+    except (OSError, ValueError):
+        raise HTTPException(status_code=503, detail="category registry unavailable") from None
 
 
 @app.get("/api/v1/research/status")
