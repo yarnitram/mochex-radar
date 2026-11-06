@@ -3,6 +3,7 @@
 import asyncio
 import os
 import hmac
+from pathlib import Path
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from datetime import datetime, timezone
@@ -26,6 +27,7 @@ from mochex_radar.dex_store import initialize_dex_store, observation_history, st
 from mochex_radar.provider_budget import initialize_budget_store, PersistentDexScreener
 from mochex_radar.dex_worker import recent_scans
 from mochex_radar.dashboard import core_snapshot
+from mochex_radar.research_status import research_status
 from mochex_radar.alert_store import outbox_status
 from mochex_radar.profile_discovery import recent_polls, discovered_catalog
 from mochex_radar.authority_checks import PersistentAuthorities, authority_history, authority_snapshot, initialize_authority_store, store_authority
@@ -223,6 +225,16 @@ async def dashboard_core():
         return await asyncio.to_thread(core_snapshot, os.environ.get("DATABASE_URL"))
     except psycopg.Error as exc:
         raise HTTPException(status_code=503, detail="stored core observations unavailable") from exc
+
+
+@app.get("/api/v1/research/status")
+async def forward_research_status():
+    root = os.environ.get("RESEARCH_STATUS_ROOT")
+    ids = os.environ.get("RESEARCH_STATUS_PLAN_IDS", "").split(",")
+    try:
+        return await asyncio.to_thread(research_status, Path(root) if root else None, [v for v in ids if v])
+    except ValueError:
+        raise HTTPException(status_code=503, detail="research status configuration unavailable") from None
 
 
 @app.get("/api/v1/features/core")

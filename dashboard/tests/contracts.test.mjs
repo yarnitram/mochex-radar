@@ -122,3 +122,80 @@ test("core features preserve unknowns and prohibit enabled signals", () => {
  assert.equal(featuresSchema.safeParse({...data,signals_enabled:true}).success,false);
  assert.equal(featuresSchema.safeParse({...data,markets:[]}).success,false);
 });
+
+import { researchSchema } from "../lib/contracts.ts";
+test("research status contract enforces count invariants, isolates unavailable plans, and rejects extra fields", () => {
+  const planId = "4".repeat(64);
+  const missingId = "b".repeat(64);
+  const valid = {
+    status: "configured",
+    research_only: true,
+    plans: [
+      {
+        plan_id: planId,
+        status: "available",
+        asset_id: "cex:mexc-usdt-futures:SOL_USDT",
+        interval: "15m",
+        decision_start: "2026-11-06T08:45:00+00:00",
+        decision_end: "2026-11-07T08:45:00+00:00",
+        total_slots: 97,
+        as_of: "2026-11-06T09:05:00+00:00",
+        status_counts: {
+          scheduled: 95,
+          awaiting_capture: 0,
+          pending_outcome: 1,
+          complete: 1,
+          complete_excluded: 0,
+          missed_capture: 0,
+          incomplete_capture: 0,
+          incomplete_outcome: 0,
+        },
+        feature_status_counts: {
+          ok: 2,
+          unavailable: 0,
+        },
+      },
+      {
+        plan_id: missingId,
+        status: "unavailable",
+        asset_id: null,
+        interval: null,
+        decision_start: null,
+        decision_end: null,
+        total_slots: null,
+        as_of: null,
+        status_counts: null,
+        feature_status_counts: null,
+      },
+    ],
+  };
+  assert.equal(researchSchema.parse(valid).plans.length, 2);
+  assert.equal(
+    researchSchema.parse({ status: "disabled", research_only: true, plans: [] })
+      .status,
+    "disabled",
+  );
+  for (const invalid of [
+    { ...valid, research_only: false },
+    { ...valid, plans: [valid.plans[0], valid.plans[0]] },
+    {
+      ...valid,
+      plans: [{ ...valid.plans[0], total_slots: 99 }],
+    },
+    {
+      ...valid,
+      plans: [
+        {
+          ...valid.plans[0],
+          feature_status_counts: { ok: 1, unavailable: 0 },
+        },
+      ],
+    },
+    {
+      ...valid,
+      plans: [{ ...valid.plans[0], gross_return: "0.01" }],
+    },
+  ]) {
+    assert.equal(researchSchema.safeParse(invalid).success, false);
+  }
+});

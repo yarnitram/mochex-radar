@@ -18,9 +18,11 @@ def main():
     project = "mochex-smoke-" + uuid.uuid4().hex[:10]
     password, token = secrets.token_urlsafe(32), secrets.token_urlsafe(40)
     with tempfile.TemporaryDirectory(prefix="mochex-smoke-") as temporary:
+        paper_dir = Path(temporary) / "paper-plans"
+        paper_dir.mkdir()
         env_file = Path(temporary) / "private.env"
         with env_file.open("x", encoding="utf-8") as handle:
-            handle.write(f"POSTGRES_PASSWORD={password}\nDATABASE_URL=postgresql://radar:{password}@db:5432/radar\nRADAR_API_TOKEN={token}\nRADAR_API_PORT=0\nRADAR_DASHBOARD_PORT=0\nRADAR_APP_IMAGE={project}-api\nRADAR_DASHBOARD_IMAGE={project}-dashboard\n")
+            handle.write(f"POSTGRES_PASSWORD={password}\nDATABASE_URL=postgresql://radar:{password}@db:5432/radar\nRADAR_API_TOKEN={token}\nRADAR_API_PORT=0\nRADAR_DASHBOARD_PORT=0\nRADAR_APP_IMAGE={project}-api\nRADAR_DASHBOARD_IMAGE={project}-dashboard\nPAPER_JOURNAL_PATH={paper_dir}\n")
         if os.name != "nt":
             env_file.chmod(0o600)
         command = ["docker", "compose", "--project-name", project, "--env-file", str(env_file), "-f", str(ROOT / "compose.yaml")]
@@ -72,7 +74,7 @@ def main():
             snapshot = json.loads(payload)
             assert snapshot["core"]["status"] == "available"
             assert snapshot["features"]["status"] == "available"
-            assert all(snapshot[name]["status"] == "available" for name in ("btc", "collector", "scans", "outbox", "catalog", "profilePolls", "authorities"))
+            assert all(snapshot[name]["status"] == "available" for name in ("btc", "collector", "scans", "outbox", "catalog", "profilePolls", "authorities", "research"))
             assert compose("exec", "-T", "api", "id", "-u") == "10001"
             assert compose("exec", "-T", "dashboard", "id", "-u") != "0"
             assert compose("exec", "-T", "api", "python", "-c", "import os;print(bool(os.statvfs('/app').f_flag & os.ST_RDONLY))") == "True"

@@ -456,3 +456,99 @@ test("core feature service outage is explicit without hiding core pairs", async 
  await expect(page.getByRole("heading",{name:"Core market features"})).toBeVisible();
  await expect(page.getByText("Feature data unavailable. Stored candle history is required.")).toBeVisible();
 });
+
+test("forward research progress displays configured plans, isolates unavailable plans, and distinguishes disabled/unavailable states", async ({
+  page,
+}) => {
+  const planId = "41244a7a15e3b5b220d4e0eb9c819d87247d622d82c4684e8f4e60d14081e7a7";
+  const missingId = "b".repeat(64);
+  let mode = "configured";
+  await page.route("**/api/dashboard", (route) =>
+    route.fulfill({
+      json: {
+        ...snapshot,
+        research:
+          mode === "unavailable"
+            ? { status: "unavailable", data: null }
+            : mode === "disabled"
+              ? {
+                  status: "available",
+                  data: { status: "disabled", research_only: true, plans: [] },
+                }
+              : {
+                  status: "available",
+                  data: {
+                    status: "configured",
+                    research_only: true,
+                    plans: [
+                      {
+                        plan_id: planId,
+                        status: "available",
+                        asset_id: "cex:mexc-usdt-futures:SOL_USDT",
+                        interval: "15m",
+                        decision_start: "2026-11-06T08:45:00+00:00",
+                        decision_end: "2026-11-07T08:45:00+00:00",
+                        total_slots: 97,
+                        as_of: "2026-11-06T09:05:00+00:00",
+                        status_counts: {
+                          scheduled: 95,
+                          awaiting_capture: 0,
+                          pending_outcome: 1,
+                          complete: 1,
+                          complete_excluded: 0,
+                          missed_capture: 0,
+                          incomplete_capture: 0,
+                          incomplete_outcome: 0,
+                        },
+                        feature_status_counts: {
+                          ok: 2,
+                          unavailable: 0,
+                        },
+                      },
+                      {
+                        plan_id: missingId,
+                        status: "unavailable",
+                        asset_id: null,
+                        interval: null,
+                        decision_start: null,
+                        decision_end: null,
+                        total_slots: null,
+                        as_of: null,
+                        status_counts: null,
+                        feature_status_counts: null,
+                      },
+                    ],
+                  },
+                },
+      },
+    }),
+  );
+  await page.goto("/");
+  const panel = page.locator("#research");
+  await expect(panel.getByText("2 plans", { exact: true })).toBeVisible();
+  await expect(panel.getByRole("row")).toHaveCount(3);
+  await expect(panel.getByText("SOL_USDT · 15m")).toBeVisible();
+  await expect(panel.getByText("97 total slots")).toBeVisible();
+  await expect(
+    panel.getByText("1 complete · 0 excluded · 1 pending"),
+  ).toBeVisible();
+  await expect(panel.getByText("2 ok · 0 unavailable")).toBeVisible();
+  await expect(panel.getByText("Journal unavailable")).toBeVisible();
+
+  mode = "disabled";
+  await page.getByRole("button", { name: "Refresh data" }).click();
+  await expect(
+    panel.getByRole("heading", {
+      name: "Forward research status is not configured",
+    }),
+  ).toBeVisible();
+
+  mode = "unavailable";
+  await page.getByRole("button", { name: "Refresh data" }).click();
+  await expect(
+    panel.getByRole("heading", {
+      name: "Forward research status unavailable",
+    }),
+  ).toBeVisible();
+  await expect(page.locator("#core").getByRole("row")).toHaveCount(8);
+});

@@ -160,6 +160,7 @@ export const profilePollsSchema = z.discriminatedUnion("status", [
 export type Snapshot = {
   fetched_at: string;
   features?: Service<z.infer<typeof featuresSchema>>;
+  research?: Service<z.infer<typeof researchSchema>>;
   core: Service<z.infer<typeof coreSchema>>;
   btc: Service<z.infer<typeof btcSchema>>;
   collector: Service<z.infer<typeof collectorSchema>>;
@@ -287,3 +288,105 @@ export const featuresSchema = z.object({
       structure_state: z.enum(["breakout_up","breakdown","range"]).nullable()})
   })).length(7)
 });
+
+const planId = z.string().regex(/^[0-9a-f]{64}$/);
+const researchStatusCounts = z
+  .object({
+    scheduled: count,
+    awaiting_capture: count,
+    pending_outcome: count,
+    complete: count,
+    complete_excluded: count,
+    missed_capture: count,
+    incomplete_capture: count,
+    incomplete_outcome: count,
+  })
+  .strict();
+const researchFeatureCounts = z
+  .object({
+    ok: count,
+    unavailable: count,
+  })
+  .strict();
+const researchPlan = z.discriminatedUnion("status", [
+  z
+    .object({
+      plan_id: planId,
+      status: z.literal("available"),
+      asset_id: z
+        .string()
+        .regex(/^cex:mexc-usdt-futures:(SOL|XRP|DOGE|LINK|SUI|AVAX|ADA)_USDT$/),
+      interval: z.enum(["15m", "1h"]),
+      decision_start: timestamp,
+      decision_end: timestamp,
+      total_slots: z.number().int().min(2).max(1000),
+      as_of: timestamp,
+      status_counts: researchStatusCounts,
+      feature_status_counts: researchFeatureCounts,
+    })
+    .strict()
+    .superRefine((plan, ctx) => {
+      const slotTotal = Object.values(plan.status_counts).reduce(
+        (sum, val) => sum + val,
+        0,
+      );
+      const capturedTotal =
+        plan.status_counts.pending_outcome +
+        plan.status_counts.complete +
+        plan.status_counts.complete_excluded +
+        plan.status_counts.incomplete_outcome;
+      const featureTotal =
+        plan.feature_status_counts.ok + plan.feature_status_counts.unavailable;
+      if (
+        slotTotal !== plan.total_slots ||
+        featureTotal !== capturedTotal ||
+        Date.parse(plan.decision_start) >= Date.parse(plan.decision_end)
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          message: "research plan slot or feature counts inconsistent",
+        });
+      }
+    }),
+  z
+    .object({
+      plan_id: planId,
+      status: z.literal("unavailable"),
+      asset_id: z.null(),
+      interval: z.null(),
+      decision_start: z.null(),
+      decision_end: z.null(),
+      total_slots: z.null(),
+      as_of: z.null(),
+      status_counts: z.null(),
+      feature_status_counts: z.null(),
+    })
+    .strict(),
+]);
+export const researchSchema = z
+  .discriminatedUnion("status", [
+    z
+      .object({
+        status: z.literal("disabled"),
+        research_only: z.literal(true),
+        plans: z.array(z.never()),
+      })
+      .strict(),
+    z
+      .object({
+        status: z.literal("configured"),
+        research_only: z.literal(true),
+        plans: z.array(researchPlan).max(10),
+      })
+      .strict(),
+  ])
+  .superRefine((data, ctx) => {
+    if (data.status !== "configured") return;
+    const ids = data.plans.map((p) => p.plan_id);
+    if (new Set(ids).size !== ids.length) {
+      ctx.addIssue({
+        code: "custom",
+        message: "duplicate research plan IDs",
+      });
+    }
+  });

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   featuresSchema,
+  researchSchema,
   btcSchema,
   collectorSchema,
   coreSchema,
@@ -22,7 +23,9 @@ async function read<T>(
   try {
     const origin = process.env.RADAR_API_ORIGIN || "http://127.0.0.1:8000";
     const response = await fetch(new URL(path, origin), {
-      headers: process.env.RADAR_API_TOKEN ? { Authorization: `Bearer ${process.env.RADAR_API_TOKEN}` } : {},
+      headers: process.env.RADAR_API_TOKEN
+        ? { Authorization: `Bearer ${process.env.RADAR_API_TOKEN}` }
+        : {},
       cache: "no-store",
       signal: AbortSignal.timeout(5000),
     });
@@ -36,6 +39,7 @@ async function read<T>(
 export async function GET() {
   const [
     features,
+    research,
     core,
     btc,
     collector,
@@ -46,6 +50,7 @@ export async function GET() {
     authorities,
   ] = await Promise.all([
     read("/api/v1/features/core", featuresSchema),
+    read("/api/v1/research/status", researchSchema),
     read("/api/v1/dashboard/core", coreSchema),
     read("/api/v1/market-context/btc", btcSchema),
     read("/api/v1/collector/status", collectorSchema),
@@ -58,6 +63,7 @@ export async function GET() {
   return Response.json(
     {
       features,
+      research,
       fetched_at: new Date().toISOString(),
       core,
       btc,
