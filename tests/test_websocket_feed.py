@@ -17,9 +17,10 @@ def update(start: int = START, symbol: str = "SOL_USDT", interval: str = "Min15"
 
 def test_subscriptions_cover_only_expected_targets() -> None:
     messages = [json.loads(item) for item in subscriptions()]
-    assert len(messages) == len(TARGETS) == 15
+    assert len(messages) == len(TARGETS) == 16
+    assert any(m["param"] == {"symbol": "BTC_USDT", "interval": "Min60"} for m in messages)
     assert all(item["method"] == "sub.kline" for item in messages)
-    assert sum(item["param"]["symbol"] == "BTC_USDT" for item in messages) == 1
+    assert {item["param"]["interval"] for item in messages if item["param"]["symbol"] == "BTC_USDT"} == {"Min15", "Min60"}
 
 
 def test_parse_and_rollover_finalization() -> None:
@@ -69,5 +70,5 @@ async def test_consume_subscribes_and_saves_on_rollover() -> None:
 
     socket = FakeSocket()
     await consume(socket, save)
-    assert len(socket.sent) == 15
+    assert len(socket.sent) == 16
     assert len(saved) == 1
