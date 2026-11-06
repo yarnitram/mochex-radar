@@ -743,6 +743,6 @@ test("candidate inspector displays point-in-time state machine and risk dimensio
     panel.getByText("security blocked", { exact: true }),
   ).toBeVisible();
   await expect(
-    panel.getByText("critical low dex liquidity", { exact: false }),
+    panel.getByText("critical low dex liquidity").first(),
   ).toBeVisible();
 });
