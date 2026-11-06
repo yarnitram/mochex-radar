@@ -175,7 +175,14 @@ class Runtime:
         if 'SCHEMA_VERSION = "pilot-schema-v1"' not in (release / "mochex_radar" / "initialize.py").read_text():
             raise ValueError("schema upgrade requires manual migration review")
         for name in ("api", "dashboard"):
-            if any(p.get("host_ip") != "127.0.0.1" for p in config["services"][name]["ports"]):
+            expected_host = "127.0.0.1"
+            if name == "dashboard":
+                expected_host = self.values.get("RADAR_DASHBOARD_BIND_HOST", "127.0.0.1")
+                import ipaddress
+                address = ipaddress.IPv4Address(expected_host)
+                if not (address.is_loopback or any(address in ipaddress.IPv4Network(net) for net in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"))):
+                    raise ValueError("dashboard requires loopback or an explicit private LAN IPv4 address")
+            if any(p.get("host_ip") != expected_host for p in config["services"][name]["ports"]):
                 raise ValueError("private pilot requires loopback host ports")
         self.compose(sha, "build", "api", "dashboard")
 
@@ -205,7 +212,8 @@ class Runtime:
         with urllib.request.urlopen(f"http://127.0.0.1:{api_port}/health/ready", timeout=10) as response:
             if not json.load(response)["durable_store_ready"]:
                 raise RuntimeError("candidate durable readiness failed")
-        with urllib.request.urlopen(f"http://127.0.0.1:{dashboard_port}/api/dashboard", timeout=15) as response:
+        dashboard_host = self.values.get("RADAR_DASHBOARD_BIND_HOST", "127.0.0.1")
+        with urllib.request.urlopen(f"http://{dashboard_host}:{dashboard_port}/api/dashboard", timeout=15) as response:
             if json.load(response)["core"]["status"] != "available":
                 raise RuntimeError("candidate dashboard data unavailable")
 
