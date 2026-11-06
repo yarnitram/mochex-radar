@@ -20,12 +20,13 @@ def test_history_rejects_invalid_cutoff_and_limits_before_connecting():
 
 
 @pytest.mark.skipif(not os.environ.get("TEST_DATABASE_URL"), reason="requires temporary PostgreSQL")
-def test_immutable_roundtrip_cutoffs_and_overflow():
+@pytest.mark.parametrize("instruction_path", [(0,), (40000,), (0, 1)])
+def test_immutable_roundtrip_cutoffs_and_overflow(instruction_path):
     dsn = os.environ["TEST_DATABASE_URL"]
     initialize_swap_store(dsn)
     now = datetime.now(timezone.utc)
     mint = "test-" + uuid4().hex
-    swap = Swap("sig", (0,), 0, mint, "pool", "owner", "BUY", Decimal(2),
+    swap = Swap("sig", instruction_path, 0, mint, "pool", "owner", "BUY", Decimal(2),
                 None, now - timedelta(hours=2), now - timedelta(hours=1), "fixture")
     try:
         store_swap(dsn, swap)

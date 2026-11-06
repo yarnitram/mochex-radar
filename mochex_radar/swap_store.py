@@ -41,7 +41,7 @@ def store_swap(dsn, swap: Swap):
             (*key, swap.mint, swap.known_at, digest, Jsonb(payload))).fetchone()
         if row is None:
             previous = conn.execute("""SELECT content_hash FROM normalized_swap_observations
-                WHERE source=%s AND signature=%s AND instruction_path=%s AND swap_index=%s""", key).fetchone()
+                WHERE source=%s AND signature=%s AND instruction_path=%s::integer[] AND swap_index=%s""", key).fetchone()
             if previous is None or previous[0] != digest:
                 raise ValueError("conflicting immutable swap observation")
 
