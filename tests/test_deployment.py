@@ -104,6 +104,27 @@ def test_build_failure_does_not_touch_existing_runtime():
         release_transaction("new", "old", failed, forbidden, forbidden, forbidden, forbidden)
 
 
+@pytest.mark.parametrize("fails", [False, True])
+def test_backup_resumes_running_alert_worker_on_success_or_failure(fails):
+    runtime = object.__new__(Runtime)
+    calls = []
+    def compose(sha, *args):
+        calls.append(args)
+        return "db\nalert-worker" if args[0] == "ps" else ""
+    def write_backup(sha):
+        calls.append(("backup",))
+        if fails:
+            raise RuntimeError("backup failed")
+    runtime.compose = compose
+    runtime._write_backup = write_backup
+    if fails:
+        with pytest.raises(RuntimeError, match="backup failed"):
+            runtime.backup("a" * 40)
+    else:
+        runtime.backup("a" * 40)
+    assert calls[1:] == [("stop", "alert-worker"), ("backup",), ("start", "alert-worker")]
+
+
 def test_real_backup_function_creates_private_dump_research_archive_and_hash_manifest(tmp_path):
     source = tmp_path / "source"; source.mkdir()
     runtime = Runtime(source, tmp_path / "state", private_env(tmp_path / "private.env"))

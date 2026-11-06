@@ -188,8 +188,18 @@ class Runtime:
 
     def backup(self, sha):
         active = set(self.compose(sha, "ps", "--services", "--filter", "status=running").splitlines())
-        if active - {*SERVICES, "db", "redis"}:
+        if active - {*SERVICES, "db", "redis", "alert-worker"}:
             raise ValueError("quiesce optional workers before backing up/updating the private pilot")
+        paused_alerts = "alert-worker" in active
+        try:
+            if paused_alerts:
+                self.compose(sha, "stop", "alert-worker")
+            self._write_backup(sha)
+        finally:
+            if paused_alerts:
+                self.compose(sha, "start", "alert-worker")
+
+    def _write_backup(self, sha):
         destination = self.state / "backups" / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid4().hex[:8])
         destination.mkdir(parents=True, mode=0o700)
         with (destination / "database.dump").open("xb") as handle:

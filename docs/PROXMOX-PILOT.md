@@ -87,6 +87,10 @@ not treat an empty but healthy deployment as validated signals.
 
 ## Updates, backup and rollback
 
+The updater pauses a running Telegram alert worker while writing the backup and
+resumes it even when backup creation fails. Other optional workers still require
+manual quiescence before deployment. Alert delivery can briefly pause during updates.
+
 Each update builds first, backs up the existing database/research files with hash
 manifest, starts the candidate and commits active state only after health succeeds.
 If the candidate fails, previous app images/config are restarted and checked;
