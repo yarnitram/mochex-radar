@@ -76,12 +76,13 @@ def test_parse_holder_concentration_and_exclusions() -> None:
         known_at=now,
         excluded_token_accounts={ACCT_LP},
     )
-    assert filtered.concentration_status == SecurityStatus.PASS.value
+    assert filtered.concentration_status == SecurityStatus.UNKNOWN.value
     assert filtered.top_1_unlocked_pct == Decimal(10)
     assert filtered.top_10_unlocked_pct == Decimal(18)
     assert filtered.excluded_accounts_count == 1
-    assert filtered.holder_evidence is not None
-    assert filtered.holder_evidence.excluded_known_accounts == (ACCT_LP,)
+    assert filtered.holder_evidence is None
+    assert filtered.evidence_scope == "token_accounts_only"
+    assert filtered.ownership_verified is False and filtered.locks_verified is False
     assert filtered.security_status == "UNKNOWN"
     assert filtered.approved_pump_watch is False
 

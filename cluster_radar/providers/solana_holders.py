@@ -20,7 +20,7 @@ from cluster_radar.security.token_risk import (
 )
 
 HOLDER_SOURCE = "solana-public-mainnet:getTokenLargestAccounts:finalized"
-HOLDER_PARSER_VERSION = "solana-holder-concentration-v1"
+HOLDER_PARSER_VERSION = "solana-token-account-concentration-v2"
 
 
 @dataclass(frozen=True)
@@ -41,6 +41,9 @@ class HolderSnapshotObservation:
     parser_version: str = field(default=HOLDER_PARSER_VERSION, init=False)
     security_status: str = field(default="UNKNOWN", init=False)
     approved_pump_watch: bool = field(default=False, init=False)
+    evidence_scope: str = field(default="token_accounts_only", init=False)
+    ownership_verified: bool = field(default=False, init=False)
+    locks_verified: bool = field(default=False, init=False)
 
 
 def _validate_rpc_envelope(payload: dict, expected_id: int) -> tuple[int, object]:
@@ -183,6 +186,10 @@ def parse_holder_concentration(
         excluded_known_accounts=tuple(sorted(excluded_list)),
     )
     evaluated = evaluate_holder_concentration(evidence, as_of=known_at)
+    if evaluated["status"] == SecurityStatus.PASS.value:
+        evaluated = {**evaluated, "status": SecurityStatus.UNKNOWN.value,
+                     "reason": "token_account_only_ownership_and_locks_unverified",
+                     "flags": [*evaluated.get("flags", []), "holder_ownership_unverified"]}
     return HolderSnapshotObservation(
         mint=mint,
         known_at=known_at,
@@ -194,7 +201,8 @@ def parse_holder_concentration(
         top_10_unlocked_pct=top_10_pct,
         concentration_status=evaluated["status"],
         concentration_flags=tuple(evaluated["flags"]),
-        holder_evidence=evidence,
+        # Raw account balances are not verified wallet/controller risk evidence.
+        holder_evidence=None,
         excluded_accounts_count=len(excluded_list),
     )
 
