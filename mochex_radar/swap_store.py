@@ -24,7 +24,10 @@ def initialize_swap_store(dsn):
             ON normalized_swap_observations (mint, known_at DESC)""")
 
 
-def store_swap(dsn, swap: Swap):
+def store_swap(dsn, swap: Swap, *, connection=None) -> str:
+    if connection is None:
+        with psycopg.connect(dsn, connect_timeout=5) as conn:
+            return store_swap(dsn, swap, connection=conn)
     payload = asdict(swap)
     for name in ("event_at", "known_at"):
         payload[name] = payload[name].isoformat()
@@ -34,16 +37,16 @@ def store_swap(dsn, swap: Swap):
     payload["instruction_path"] = list(swap.instruction_path)
     digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
     key = (swap.source, swap.signature, list(swap.instruction_path), swap.swap_index)
-    with psycopg.connect(dsn, connect_timeout=5) as conn:
-        row = conn.execute("""INSERT INTO normalized_swap_observations
-            (source,signature,instruction_path,swap_index,mint,known_at,content_hash,payload)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING content_hash""",
-            (*key, swap.mint, swap.known_at, digest, Jsonb(payload))).fetchone()
-        if row is None:
-            previous = conn.execute("""SELECT content_hash FROM normalized_swap_observations
-                WHERE source=%s AND signature=%s AND instruction_path=%s::integer[] AND swap_index=%s""", key).fetchone()
-            if previous is None or previous[0] != digest:
-                raise ValueError("conflicting immutable swap observation")
+    row = connection.execute("""INSERT INTO normalized_swap_observations
+        (source,signature,instruction_path,swap_index,mint,known_at,content_hash,payload)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING content_hash""",
+        (*key, swap.mint, swap.known_at, digest, Jsonb(payload))).fetchone()
+    if row is None:
+        previous = connection.execute("""SELECT content_hash FROM normalized_swap_observations
+            WHERE source=%s AND signature=%s AND instruction_path=%s::integer[] AND swap_index=%s""", key).fetchone()
+        if previous is None or previous[0] != digest:
+            raise ValueError("conflicting immutable swap observation")
+    return digest
 
 
 def swap_history(dsn, mint: str, as_of: datetime, limit=1000):

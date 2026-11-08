@@ -1,10 +1,11 @@
-"""Point-in-time stored Solana candidate risk and state-machine evaluation."""
+"""Point-in-time stored Solana candidate risk, wallet history, and state-machine evaluation."""
 
 from __future__ import annotations
 
 import asyncio
 import hashlib
 import json
+from collections.abc import Sequence
 from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -14,6 +15,7 @@ from fastapi.encoders import jsonable_encoder
 from psycopg.types.json import Jsonb
 
 from cluster_radar.discovery.identity import MarketStage
+from cluster_radar.intelligence.research import funding_groups, swap_metrics
 from cluster_radar.providers.dexscreener import BudgetExceeded, ProviderUnavailable
 from cluster_radar.providers.solana_authorities import decode_pubkey
 from cluster_radar.providers.solana_holders import (
@@ -30,10 +32,20 @@ from cluster_radar.security.token_risk import (
     evaluate_holder_concentration,
     evaluate_stage_liquidity,
 )
+from cluster_radar.signals.features import (
+    FEATURE_VERSION as SWAP_FEATURE_VERSION,
+    extract_swap_features,
+)
+from cluster_radar.signals.research import FeatureEvidence
 from cluster_radar.signals.state_machine import evaluate_candidate_state
 from mochex_radar.authority_checks import authority_history
 from mochex_radar.dex_store import observation_history
+from mochex_radar.funding_store import funding_history
+from mochex_radar.history_batch_store import provenance_history
 from mochex_radar.provider_budget import initialize_budget_store, reserve_request
+from mochex_radar.swap_store import swap_history
+
+DEFAULT_HISTORY_LOOKBACK = timedelta(minutes=15)
 
 HOLDER_SCHEMA = """
 CREATE TABLE IF NOT EXISTS mint_holder_observations (
@@ -214,11 +226,128 @@ def _build_holder_evidence(holder_rows: list[dict]) -> HolderRiskEvidence | None
     )
 
 
+def evaluate_stored_history_features(
+    dsn: str | None,
+    mint: str,
+    *,
+    as_of: datetime,
+    lookback: timedelta = DEFAULT_HISTORY_LOOKBACK,
+    history_start: datetime | None = None,
+) -> dict:
+    """Derive point-in-time swap and funding features from immutable stored history.
+
+    Missing history coverage, buyer independence, wallet quality, and market structure
+    are never zero-filled. Pagination exhaustion in provenance batches remains
+    unverified unless an explicit coverage `history_start` is supplied for replay.
+    """
+    decode_pubkey(mint)
+    if as_of.tzinfo is None or as_of.utcoffset() != timedelta(0):
+        raise ValueError("as_of must be UTC")
+    if lookback <= timedelta(0):
+        raise ValueError("lookback must be positive")
+    if history_start is not None and (
+        history_start.tzinfo is None or history_start.utcoffset() != timedelta(0)
+    ):
+        raise ValueError("history_start must be UTC")
+
+    base_unverified_reasons = {
+        "independent_buying": "buyer_independence_unverified",
+        "compression_structure": "missing_market_structure_evidence",
+        "wallet_quality": "missing_wallet_quality_evidence",
+        "organic_volume": "missing_organic_volume_evidence",
+        "holder_distribution": "token_account_only_ownership_unverified",
+        "price_volume_divergence": "missing_divergence_evidence",
+        "liquidity_deterioration": "missing_liquidity_series_evidence",
+        "structure_weakness": "missing_structure_weakness_evidence",
+    }
+
+    if not dsn:
+        return {
+            "feature_version": SWAP_FEATURE_VERSION,
+            "as_of": as_of,
+            "lookback_seconds": lookback.total_seconds(),
+            "history_start": None,
+            "completeness": "unverified",
+            "provenance_batches_count": 0,
+            "pump_features": [],
+            "dump_features": [],
+            "unavailable_features": {
+                "buyer_exhaustion": "storage_disabled",
+                "new_owner_participation": "storage_disabled",
+                **base_unverified_reasons,
+            },
+            "swap_metrics": None,
+            "funding_groups": {
+                "as_of": as_of,
+                "groups": [],
+                "ownership_verified": False,
+                "conflicting_wallets": [],
+            },
+            "buyer_independence_verified": False,
+        }
+
+    try:
+        swaps = swap_history(dsn, mint, as_of, limit=1000)
+    except (psycopg.errors.UndefinedTable, psycopg.OperationalError):
+        swaps = []
+
+    metrics = swap_metrics(swaps, mint, as_of, lookback)
+    owners = sorted({s.owner for s in swaps})
+
+    funding_rows = []
+    provenance_count = 0
+    if owners:
+        try:
+            funding_rows = funding_history(dsn, owners[:500], as_of, limit=1000)
+        except (psycopg.errors.UndefinedTable, psycopg.OperationalError):
+            funding_rows = []
+        for owner in owners[:25]:
+            try:
+                provenance_count += len(provenance_history(dsn, owner, as_of, limit=10))
+            except (psycopg.errors.UndefinedTable, psycopg.OperationalError):
+                break
+
+    fg = funding_groups(funding_rows, as_of)
+    effective_start = history_start if history_start is not None else as_of
+    extracted = extract_swap_features(swaps, mint, as_of, lookback, effective_start)
+
+    pump_features: list[FeatureEvidence] = []
+    dump_features: list[FeatureEvidence] = []
+    if "new_owner_participation" in extracted["features"]:
+        pump_features.append(extracted["features"]["new_owner_participation"])
+    if "buyer_exhaustion" in extracted["features"]:
+        dump_features.append(extracted["features"]["buyer_exhaustion"])
+
+    unavailable = {
+        **extracted["unavailable"],
+        **base_unverified_reasons,
+    }
+
+    return {
+        "feature_version": SWAP_FEATURE_VERSION,
+        "as_of": as_of,
+        "lookback_seconds": lookback.total_seconds(),
+        "history_start": history_start,
+        "completeness": "unverified",
+        "provenance_batches_count": provenance_count,
+        "pump_features": pump_features,
+        "dump_features": dump_features,
+        "unavailable_features": unavailable,
+        "swap_metrics": metrics,
+        "funding_groups": fg,
+        "buyer_independence_verified": False,
+    }
+
+
 def evaluate_stored_candidate(
     dsn: str | None,
     mint: str,
     *,
     as_of: datetime | None = None,
+    history_start: datetime | None = None,
+    lookback: timedelta = DEFAULT_HISTORY_LOOKBACK,
+    extra_pump_features: Sequence[FeatureEvidence] = (),
+    extra_dump_features: Sequence[FeatureEvidence] = (),
 ) -> dict:
     decode_pubkey(mint)
     cutoff = as_of or datetime.now(timezone.utc)
@@ -254,8 +383,8 @@ def evaluate_stored_candidate(
             mint=mint,
             as_of=cutoff,
             window_end=cutoff,
-            pump_features=[],
-            dump_features=[],
+            pump_features=list(extra_pump_features),
+            dump_features=list(extra_dump_features),
             token_risk=empty_risk,
         )
         return jsonable_encoder(
@@ -318,13 +447,25 @@ def evaluate_stored_candidate(
         "flags": flags,
         "vendor_verdict_note": "vendor_score_never_sufficient_for_pass",
     }
+
+    history_eval = evaluate_stored_history_features(
+        dsn,
+        mint,
+        as_of=cutoff,
+        lookback=lookback,
+        history_start=history_start,
+    )
+    pump_features = [*history_eval["pump_features"], *extra_pump_features]
+    dump_features = [*history_eval["dump_features"], *extra_dump_features]
+
     state_eval = evaluate_candidate_state(
         mint=mint,
         as_of=cutoff,
         window_end=cutoff,
-        pump_features=[],
-        dump_features=[],
+        pump_features=pump_features,
+        dump_features=dump_features,
         token_risk=token_risk,
+        buyer_independence_verified=history_eval["buyer_independence_verified"],
     )
     return jsonable_encoder(
         {

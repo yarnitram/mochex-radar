@@ -1,16 +1,25 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
-import pytest
 from fastapi.testclient import TestClient
 
+from cluster_radar.intelligence.research import FundingEvidence, Swap
 from cluster_radar.providers.solana_authorities import encode_pubkey
+from cluster_radar.signals.research import FeatureEvidence
 from mochex_radar.api import app
-from mochex_radar.candidate_evaluation import evaluate_stored_candidate
+from mochex_radar.candidate_evaluation import (
+    evaluate_stored_candidate,
+    evaluate_stored_history_features,
+)
 
 MINT = encode_pubkey(b"\x61" * 32)
+POOL = encode_pubkey(b"\x62" * 32)
+BUYER_A = encode_pubkey(b"\x63" * 32)
+BUYER_B = encode_pubkey(b"\x64" * 32)
+FUNDER_CEX = encode_pubkey(b"\x65" * 32)
+FUNDER_SHARED = encode_pubkey(b"\x66" * 32)
 
 
 def test_evaluate_stored_candidate_storage_disabled() -> None:
@@ -101,6 +110,123 @@ def test_evaluate_stored_candidate_synthesizes_blocked_and_partial_evidence(monk
     assert partial["token_risk"]["security_status"] == "UNKNOWN"
     assert partial["candidate_state"]["state"] == "DISCOVERED"
     assert partial["candidate_state"]["approved_live_signal"] is False
+
+
+def test_history_scoring_integration_gates_incomplete_coverage_and_shared_references(monkeypatch) -> None:
+    as_of = datetime(2026, 11, 6, 12, 0, tzinfo=UTC)
+    lookback = timedelta(minutes=15)
+    prior_swap = Swap(
+        "sig-prior",
+        (0,),
+        0,
+        MINT,
+        POOL,
+        BUYER_A,
+        "BUY",
+        Decimal(100),
+        Decimal(1000),
+        as_of - timedelta(minutes=20),
+        as_of - timedelta(minutes=19),
+        "helius",
+    )
+    current_swap = Swap(
+        "sig-current",
+        (0,),
+        0,
+        MINT,
+        POOL,
+        BUYER_B,
+        "BUY",
+        Decimal(10),
+        Decimal(100),
+        as_of - timedelta(minutes=5),
+        as_of - timedelta(minutes=4),
+        "helius",
+    )
+    monkeypatch.setattr(
+        "mochex_radar.candidate_evaluation.swap_history",
+        lambda _dsn, _mint, _cutoff, limit=1000: [current_swap, prior_swap],
+    )
+    monkeypatch.setattr(
+        "mochex_radar.candidate_evaluation.funding_history",
+        lambda _dsn, _wallets, _cutoff, limit=1000: [
+            FundingEvidence(
+                BUYER_A,
+                FUNDER_CEX,
+                "f-1",
+                as_of - timedelta(hours=1),
+                as_of - timedelta(hours=1),
+                "CEX",
+                as_of - timedelta(hours=1),
+                "helius",
+            ),
+            FundingEvidence(
+                BUYER_B,
+                FUNDER_SHARED,
+                "f-2",
+                as_of - timedelta(hours=1),
+                as_of - timedelta(hours=1),
+                "UNKNOWN",
+                as_of - timedelta(hours=1),
+                "helius",
+            ),
+        ],
+    )
+    monkeypatch.setattr(
+        "mochex_radar.candidate_evaluation.provenance_history",
+        lambda _dsn, _wallet, _cutoff, limit=10: [{"completeness": "unverified"}],
+    )
+    monkeypatch.setattr("mochex_radar.candidate_evaluation.authority_history", lambda *a, **k: [])
+    monkeypatch.setattr("mochex_radar.candidate_evaluation.observation_history", lambda *a, **k: [])
+    monkeypatch.setattr("mochex_radar.candidate_evaluation.holder_history", lambda *a, **k: [])
+
+    # 1. Without verified history_start covering both windows, features remain unavailable (never zero-filled)
+    unverified_hist = evaluate_stored_history_features("postgresql://unused", MINT, as_of=as_of, lookback=lookback)
+    assert unverified_hist["pump_features"] == []
+    assert unverified_hist["dump_features"] == []
+    assert unverified_hist["unavailable_features"]["buyer_exhaustion"] == "insufficient_history_coverage"
+    assert unverified_hist["unavailable_features"]["new_owner_participation"] == "insufficient_history_coverage"
+    assert unverified_hist["buyer_independence_verified"] is False
+    assert unverified_hist["funding_groups"]["groups"] == []
+
+    # 2. With history_start covering prior window, swap features derive 1 pump and 1 dump feature,
+    #    moving candidate to WATCHING while keeping scores None (missing remaining 4 dimensions)
+    covered_start = as_of - timedelta(minutes=30)
+    covered_eval = evaluate_stored_candidate(
+        "postgresql://unused",
+        MINT,
+        as_of=as_of,
+        lookback=lookback,
+        history_start=covered_start,
+    )
+    assert covered_eval["candidate_state"]["state"] == "WATCHING"
+    assert covered_eval["candidate_state"]["pump_score"] is None
+    assert covered_eval["candidate_state"]["dump_score"] is None
+    assert "incomplete_pump_features" in covered_eval["candidate_state"]["blocking_gates"]
+    assert "buyer_independence_unverified" in covered_eval["candidate_state"]["blocking_gates"]
+    assert covered_eval["candidate_state"]["provisional"] is True
+    assert covered_eval["candidate_state"]["approved_live_signal"] is False
+    assert covered_eval["candidate_state"]["alerts_enabled"] is False
+
+    # 3. Shared references across dump features collapse warning groups to 1, preventing false DUMP_WARNING
+    shared_ref = f"swap:{current_swap.signature}/0/0"
+    extra_dump = [
+        FeatureEvidence("holder_distribution", Decimal("0.9"), covered_start, as_of, as_of, "derived:helius", "group-a", (shared_ref,)),
+        FeatureEvidence("price_volume_divergence", Decimal("0.9"), covered_start, as_of, as_of, "derived:helius", "group-b", (shared_ref,)),
+        FeatureEvidence("liquidity_deterioration", Decimal("0.9"), covered_start, as_of, as_of, "derived:helius", "group-c", (shared_ref,)),
+        FeatureEvidence("structure_weakness", Decimal("0.9"), covered_start, as_of, as_of, "derived:helius", "group-d", (shared_ref,)),
+    ]
+    collapsed_eval = evaluate_stored_candidate(
+        "postgresql://unused",
+        MINT,
+        as_of=as_of,
+        lookback=lookback,
+        history_start=covered_start,
+        extra_dump_features=extra_dump,
+    )
+    assert collapsed_eval["candidate_state"]["dump_score"] == "90.0"
+    assert collapsed_eval["candidate_state"]["dump_warning_groups"] == 1
+    assert collapsed_eval["candidate_state"]["state"] == "WATCHING"
 
 
 def test_candidate_evaluation_and_holders_api_endpoints(monkeypatch) -> None:

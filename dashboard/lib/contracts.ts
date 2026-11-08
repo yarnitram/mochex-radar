@@ -550,7 +550,7 @@ export const candidateEvaluationSchema = z
       security_status: riskStatusEnum,
       pump_score: z.string().nullable(),
       dump_score: z.string().nullable(),
-      dump_warning_groups: z.array(z.any()),
+      dump_warning_groups: z.union([z.number().int().nonnegative(), z.array(z.any()), z.null()]),
       blocking_gates: z.array(z.string()),
       provisional: z.literal(true),
       approved_live_signal: z.literal(false),
