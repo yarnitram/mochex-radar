@@ -347,18 +347,40 @@ class LiquidityRiskEvidence:
 class HolderRiskEvidence:
     known_at: datetime
     source: str
-    top_1_unlocked_pct: Decimal
-    top_10_unlocked_pct: Decimal
+    top_1_account_pct: Decimal | None = None
+    top_10_account_pct: Decimal | None = None
     excluded_known_accounts: tuple[str, ...] = ()
+    top_1_unlocked_pct: Decimal | None = None
+    top_10_unlocked_pct: Decimal | None = None
 
     def __post_init__(self) -> None:
         require_utc(self.known_at)
         if not self.source:
             raise ValueError("holder source required")
+        t1 = self.top_1_account_pct if self.top_1_account_pct is not None else self.top_1_unlocked_pct
+        t10 = self.top_10_account_pct if self.top_10_account_pct is not None else self.top_10_unlocked_pct
+        if t1 is None or t10 is None:
+            raise ValueError("holder concentration percentages (top_1 and top_10) required")
         if (
-            not self.top_1_unlocked_pct.is_finite()
-            or not self.top_10_unlocked_pct.is_finite()
-            or not Decimal(0) <= self.top_1_unlocked_pct <= self.top_10_unlocked_pct <= Decimal(100)
+            self.top_1_account_pct is not None
+            and self.top_1_unlocked_pct is not None
+            and self.top_1_account_pct != self.top_1_unlocked_pct
+        ):
+            raise ValueError("top_1_account_pct and top_1_unlocked_pct must match")
+        if (
+            self.top_10_account_pct is not None
+            and self.top_10_unlocked_pct is not None
+            and self.top_10_account_pct != self.top_10_unlocked_pct
+        ):
+            raise ValueError("top_10_account_pct and top_10_unlocked_pct must match")
+        object.__setattr__(self, "top_1_account_pct", t1)
+        object.__setattr__(self, "top_10_account_pct", t10)
+        object.__setattr__(self, "top_1_unlocked_pct", t1)
+        object.__setattr__(self, "top_10_unlocked_pct", t10)
+        if (
+            not self.top_1_account_pct.is_finite()
+            or not self.top_10_account_pct.is_finite()
+            or not Decimal(0) <= self.top_1_account_pct <= self.top_10_account_pct <= Decimal(100)
         ):
             raise ValueError("holder concentration percentages must satisfy 0 <= top_1 <= top_10 <= 100")
 
@@ -464,16 +486,18 @@ def evaluate_holder_concentration(
     flags: list[str] = []
     blocked = False
     caution = False
-    if evidence.top_1_unlocked_pct >= block_top_1_pct:
+    top_1 = evidence.top_1_account_pct
+    top_10 = evidence.top_10_account_pct
+    if top_1 >= block_top_1_pct:
         blocked = True
         flags.append("critical_top_1_concentration")
-    elif evidence.top_1_unlocked_pct >= caution_top_1_pct:
+    elif top_1 >= caution_top_1_pct:
         caution = True
         flags.append("elevated_top_1_concentration")
-    if evidence.top_10_unlocked_pct >= block_top_10_pct:
+    if top_10 >= block_top_10_pct:
         blocked = True
         flags.append("critical_top_10_concentration")
-    elif evidence.top_10_unlocked_pct >= caution_top_10_pct:
+    elif top_10 >= caution_top_10_pct:
         caution = True
         flags.append("elevated_top_10_concentration")
     status = (
@@ -486,8 +510,10 @@ def evaluate_holder_concentration(
     return {
         "status": status,
         "reason": "evaluated",
-        "top_1_unlocked_pct": evidence.top_1_unlocked_pct,
-        "top_10_unlocked_pct": evidence.top_10_unlocked_pct,
+        "top_1_account_pct": top_1,
+        "top_10_account_pct": top_10,
+        "top_1_unlocked_pct": top_1,
+        "top_10_unlocked_pct": top_10,
         "excluded_known_accounts": list(evidence.excluded_known_accounts),
         "flags": flags,
     }

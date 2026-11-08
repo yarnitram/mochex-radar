@@ -533,6 +533,8 @@ export const candidateEvaluationSchema = z
         holder_concentration: z.object({
           status: riskStatusEnum,
           reason: z.string(),
+          top_1_account_pct: z.string().nullable().optional(),
+          top_10_account_pct: z.string().nullable().optional(),
           top_1_unlocked_pct: z.string().nullable().optional(),
           top_10_unlocked_pct: z.string().nullable().optional(),
           flags: z.array(z.string()),

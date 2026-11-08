@@ -141,7 +141,25 @@ def test_stage_liquidity_and_holder_concentration_fail_closed():
         LiquidityRiskEvidence(MarketStage.CURVE, NOW, "fixture", dex_liquidity_usd=Decimal(100))
 
     holders_ok = HolderRiskEvidence(NOW, "fixture", Decimal(8), Decimal(35))
-    assert evaluate_holder_concentration(holders_ok, as_of=NOW)["status"] == "PASS"
+    assert holders_ok.top_1_account_pct == Decimal(8)
+    assert holders_ok.top_1_unlocked_pct == Decimal(8)
+    assert holders_ok.top_10_account_pct == Decimal(35)
+    assert holders_ok.top_10_unlocked_pct == Decimal(35)
+    eval_ok = evaluate_holder_concentration(holders_ok, as_of=NOW)
+    assert eval_ok["status"] == "PASS"
+    assert eval_ok["top_1_account_pct"] == Decimal(8)
+    assert eval_ok["top_1_unlocked_pct"] == Decimal(8)
+    assert eval_ok["top_10_account_pct"] == Decimal(35)
+    assert eval_ok["top_10_unlocked_pct"] == Decimal(35)
+
+    # Keyword constructor with account_pct and unlocked_pct aliases
+    kw_account = HolderRiskEvidence(known_at=NOW, source="fixture", top_1_account_pct=Decimal(8), top_10_account_pct=Decimal(35))
+    assert kw_account.top_1_unlocked_pct == Decimal(8)
+    kw_unlocked = HolderRiskEvidence(known_at=NOW, source="fixture", top_1_unlocked_pct=Decimal(8), top_10_unlocked_pct=Decimal(35))
+    assert kw_unlocked.top_1_account_pct == Decimal(8)
+
+    with pytest.raises(ValueError, match="match"):
+        HolderRiskEvidence(known_at=NOW, source="fixture", top_1_account_pct=Decimal(8), top_1_unlocked_pct=Decimal(9), top_10_account_pct=Decimal(35))
 
     holders_caution = HolderRiskEvidence(NOW, "fixture", Decimal(18), Decimal(40))
     assert evaluate_holder_concentration(holders_caution, as_of=NOW)["status"] == "CAUTION"

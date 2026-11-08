@@ -29,6 +29,8 @@ type EvaluationResult = {
       holder_concentration: {
         status: string;
         reason: string;
+        top_1_account_pct?: string | null;
+        top_10_account_pct?: string | null;
         top_1_unlocked_pct?: string | null;
         top_10_unlocked_pct?: string | null;
         flags: string[];
@@ -397,14 +399,14 @@ export default function CandidateInspector({
                   <td>
                     <span>
                       Top 1:{" "}
-                      {result.token_risk.checks.holder_concentration
-                        .top_1_unlocked_pct
-                        ? `${Number(result.token_risk.checks.holder_concentration.top_1_unlocked_pct).toFixed(2)}%`
+                      {(result.token_risk.checks.holder_concentration.top_1_account_pct ??
+                        result.token_risk.checks.holder_concentration.top_1_unlocked_pct)
+                        ? `${Number(result.token_risk.checks.holder_concentration.top_1_account_pct ?? result.token_risk.checks.holder_concentration.top_1_unlocked_pct).toFixed(2)}%`
                         : "missing"}{" "}
                       · Top 10:{" "}
-                      {result.token_risk.checks.holder_concentration
-                        .top_10_unlocked_pct
-                        ? `${Number(result.token_risk.checks.holder_concentration.top_10_unlocked_pct).toFixed(2)}%`
+                      {(result.token_risk.checks.holder_concentration.top_10_account_pct ??
+                        result.token_risk.checks.holder_concentration.top_10_unlocked_pct)
+                        ? `${Number(result.token_risk.checks.holder_concentration.top_10_account_pct ?? result.token_risk.checks.holder_concentration.top_10_unlocked_pct).toFixed(2)}%`
                         : "missing"}
                     </span>
                     {result.token_risk.checks.holder_concentration.flags

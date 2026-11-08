@@ -63,6 +63,7 @@ def test_parse_holder_concentration_and_exclusions() -> None:
         known_at=now,
     )
     assert unfiltered.concentration_status == SecurityStatus.BLOCK.value
+    assert unfiltered.top_1_account_pct == Decimal(45)
     assert unfiltered.top_1_unlocked_pct == Decimal(45)
     assert unfiltered.security_status == "UNKNOWN"
     assert unfiltered.approved_pump_watch is False
@@ -77,7 +78,9 @@ def test_parse_holder_concentration_and_exclusions() -> None:
         excluded_token_accounts={ACCT_LP},
     )
     assert filtered.concentration_status == SecurityStatus.UNKNOWN.value
+    assert filtered.top_1_account_pct == Decimal(10)
     assert filtered.top_1_unlocked_pct == Decimal(10)
+    assert filtered.top_10_account_pct == Decimal(18)
     assert filtered.top_10_unlocked_pct == Decimal(18)
     assert filtered.excluded_accounts_count == 1
     assert filtered.holder_evidence is None

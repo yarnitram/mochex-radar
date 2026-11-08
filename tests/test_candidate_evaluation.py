@@ -82,6 +82,30 @@ def test_evaluate_stored_candidate_synthesizes_blocked_and_partial_evidence(monk
     assert blocked["token_risk"]["security_status"] == "BLOCK"
     assert blocked["candidate_state"]["state"] == "BLOCKED_SECURITY"
     assert "critical_top_1_concentration" in blocked["token_risk"]["flags"]
+    assert blocked["token_risk"]["checks"]["holder_concentration"]["top_1_account_pct"] == "42"
+    assert blocked["token_risk"]["checks"]["holder_concentration"]["top_1_unlocked_pct"] == "42"
+    assert blocked["token_risk"]["checks"]["holder_concentration"]["top_10_account_pct"] == "65"
+    assert blocked["token_risk"]["checks"]["holder_concentration"]["top_10_unlocked_pct"] == "65"
+
+    # Case 1b: Holder concentration with top_1_account_pct in evidence (v2 format)
+    monkeypatch.setattr(
+        "mochex_radar.candidate_evaluation.holder_history",
+        lambda _dsn, _mint, _cutoff, limit=1: [
+            {
+                "freshness": "current",
+                "evidence": {
+                    "known_at": known,
+                    "source": "solana-public-mainnet:getTokenLargestAccounts:finalized",
+                    "top_1_account_pct": str(Decimal(42)),
+                    "top_10_account_pct": str(Decimal(65)),
+                },
+            }
+        ],
+    )
+    blocked_v2 = evaluate_stored_candidate("postgresql://unused", MINT, as_of=as_of)
+    assert blocked_v2["token_risk"]["security_status"] == "BLOCK"
+    assert blocked_v2["token_risk"]["checks"]["holder_concentration"]["top_1_account_pct"] == "42"
+    assert blocked_v2["token_risk"]["checks"]["holder_concentration"]["top_1_unlocked_pct"] == "42"
 
     # Case 2: Holder concentration is 8% / 25% (PASS), authority PASS, but 2% sell depth missing -> UNKNOWN
     monkeypatch.setattr(

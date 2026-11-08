@@ -213,14 +213,16 @@ def _build_holder_evidence(holder_rows: list[dict]) -> HolderRiskEvidence | None
     if not holder_rows:
         return None
     ev = holder_rows[0]["evidence"]
-    top_1 = ev.get("top_1_unlocked_pct")
-    top_10 = ev.get("top_10_unlocked_pct")
+    top_1 = ev.get("top_1_account_pct") if ev.get("top_1_account_pct") is not None else ev.get("top_1_unlocked_pct")
+    top_10 = ev.get("top_10_account_pct") if ev.get("top_10_account_pct") is not None else ev.get("top_10_unlocked_pct")
     if top_1 is None or top_10 is None:
         return None
     known_at = datetime.fromisoformat(ev["known_at"])
     return HolderRiskEvidence(
         known_at=known_at,
         source=ev.get("source", HOLDER_SOURCE),
+        top_1_account_pct=Decimal(str(top_1)),
+        top_10_account_pct=Decimal(str(top_10)),
         top_1_unlocked_pct=Decimal(str(top_1)),
         top_10_unlocked_pct=Decimal(str(top_10)),
     )

@@ -354,6 +354,8 @@ test("candidate evaluation contract enforces fail-closed risk and signals disabl
         holder_concentration: {
           status: "CAUTION",
           reason: "evaluated",
+          top_1_account_pct: "25.0",
+          top_10_account_pct: "55.0",
           top_1_unlocked_pct: "25.0",
           top_10_unlocked_pct: "55.0",
           flags: ["elevated_top_1_concentration"],
