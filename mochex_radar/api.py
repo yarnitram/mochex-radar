@@ -39,8 +39,13 @@ from mochex_radar.candidate_evaluation import (
     initialize_holder_store,
     store_holder_observation,
 )
-from cluster_radar.providers.solana_authorities import SolanaAuthorities
 from cluster_radar.providers.solana_holders import SolanaHolderConcentration
+from cluster_radar.intelligence.research import funding_groups
+from cluster_radar.providers.solana_authorities import SolanaAuthorities, decode_pubkey
+from cluster_radar.providers.solana_history import SolanaHistoryAdapter
+from mochex_radar.funding_store import funding_history
+from mochex_radar.history_batch_store import initialize_history_batches, provenance_history
+from mochex_radar.wallet_history import PersistentSolanaHistory, wallet_history_overview
 from mochex_radar.live_state import LiveSnapshots, RedisError
 
 @asynccontextmanager
@@ -49,6 +54,7 @@ async def lifespan(app: FastAPI):
     app.state.dex_provider = None
     app.state.authority_provider = None
     app.state.holder_provider = None
+    app.state.history_provider = None
     async with httpx.AsyncClient() as client:
         solana_rpc_url = os.environ.get("SOLANA_RPC_URL") or None
         if os.environ.get("SOLANA_AUTHORITIES_ENABLED", "false").lower() == "true":
@@ -71,6 +77,23 @@ async def lifespan(app: FastAPI):
                 SolanaHolderConcentration(client, max_requests=2**63-1, **holder_kwargs),
                 holder_dsn,
                 int(os.environ.get("SOLANA_HOLDER_DAILY_REQUESTS", "100")),
+            )
+        if os.environ.get("SOLANA_HISTORY_ENABLED", "false").lower() == "true":
+            history_dsn = os.environ.get("DATABASE_URL")
+            if not history_dsn:
+                raise ValueError("history polling requires DATABASE_URL")
+            endpoint_template = os.environ.get("SOLANA_HISTORY_ENDPOINT_TEMPLATE")
+            if not endpoint_template or "{address}" not in endpoint_template:
+                raise ValueError("SOLANA_HISTORY_ENDPOINT_TEMPLATE with {address} placeholder required when SOLANA_HISTORY_ENABLED=true")
+            await asyncio.to_thread(initialize_history_batches, history_dsn)
+            app.state.history_provider = PersistentSolanaHistory(
+                SolanaHistoryAdapter(
+                    client,
+                    endpoint_template=endpoint_template,
+                    max_requests=int(os.environ.get("SOLANA_HISTORY_MAX_REQUESTS", "50")),
+                ),
+                history_dsn,
+                daily_limit=int(os.environ.get("SOLANA_HISTORY_DAILY_REQUESTS", "100")),
             )
         if os.environ.get("DEX_LOOKUP_ENABLED", "false").lower() == "true":
             if dsn := os.environ.get("DATABASE_URL"):
@@ -136,6 +159,13 @@ def get_authority_provider(request: Request):
     provider = getattr(request.app.state, "authority_provider", None)
     if provider is None:
         raise HTTPException(status_code=503, detail="Solana authority checks disabled")
+    return provider
+
+
+def get_history_provider(request: Request) -> PersistentSolanaHistory:
+    provider = getattr(request.app.state, "history_provider", None)
+    if provider is None:
+        raise HTTPException(status_code=503, detail="Solana transaction history polling disabled")
     return provider
 
 
@@ -233,6 +263,95 @@ async def solana_holder_history(mint: str, as_of: datetime, limit: int = 10):
         "observations": history,
         "security_status": "UNKNOWN",
         "approved_pump_watch": False,
+    }
+
+
+@app.post("/api/v1/security/solana/wallets/{address}/poll")
+async def poll_solana_wallet_history(
+    address: str,
+    target_mint: str = "So11111111111111111111111111111111111111112",
+    default_pool: str = "So11111111111111111111111111111111111111112",
+    limit: int = 50,
+    provider: PersistentSolanaHistory = Depends(get_history_provider),
+):
+    try:
+        decode_pubkey(address)
+        decode_pubkey(target_mint)
+        decode_pubkey(default_pool)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="invalid Solana public key") from exc
+    try:
+        return await provider.poll_wallet(address, target_mint=target_mint, default_pool=default_pool, limit=limit)
+    except BudgetExceeded as exc:
+        raise HTTPException(status_code=429, detail="history request budget exhausted") from exc
+    except ProviderUnavailable as exc:
+        raise HTTPException(status_code=503, detail="wallet history provider unavailable") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except psycopg.Error as exc:
+        raise HTTPException(status_code=503, detail="history batch storage unavailable") from exc
+
+
+@app.get("/api/v1/security/solana/wallets/{address}/history")
+async def get_solana_wallet_history(address: str, as_of: datetime | None = None, limit: int = 10):
+    dsn = os.environ.get("DATABASE_URL")
+    if not dsn:
+        raise HTTPException(status_code=503, detail="wallet history storage disabled")
+    cutoff = as_of or datetime.now(timezone.utc)
+    try:
+        return await asyncio.to_thread(wallet_history_overview, dsn, address, cutoff, limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except psycopg.Error as exc:
+        raise HTTPException(status_code=503, detail="wallet history unavailable") from exc
+
+
+@app.get("/api/v1/security/solana/wallets/{address}/provenance")
+async def get_solana_wallet_provenance(address: str, as_of: datetime | None = None, limit: int = 10):
+    dsn = os.environ.get("DATABASE_URL")
+    if not dsn:
+        raise HTTPException(status_code=503, detail="history storage disabled")
+    cutoff = as_of or datetime.now(timezone.utc)
+    try:
+        decode_pubkey(address)
+        batches = await asyncio.to_thread(provenance_history, dsn, address, cutoff, limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except psycopg.Error as exc:
+        raise HTTPException(status_code=503, detail="history provenance unavailable") from exc
+    return {
+        "data_status": "stored_provenance",
+        "wallet": address,
+        "as_of": cutoff.isoformat(),
+        "batches_count": len(batches),
+        "batches": batches,
+        "completeness": "unverified",
+        "signals_enabled": False,
+    }
+
+
+@app.get("/api/v1/security/solana/wallets/{address}/funding")
+async def get_solana_wallet_funding(address: str, as_of: datetime | None = None, limit: int = 100):
+    dsn = os.environ.get("DATABASE_URL")
+    if not dsn:
+        raise HTTPException(status_code=503, detail="funding storage disabled")
+    cutoff = as_of or datetime.now(timezone.utc)
+    try:
+        decode_pubkey(address)
+        rows = await asyncio.to_thread(funding_history, dsn, address, cutoff, limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except psycopg.Error as exc:
+        raise HTTPException(status_code=503, detail="funding history unavailable") from exc
+    fg = funding_groups(rows, cutoff)
+    return {
+        "data_status": "stored_funding",
+        "wallet": address,
+        "as_of": cutoff.isoformat(),
+        "funding_count": len(rows),
+        "funding_evidence": [asdict(r) for r in rows],
+        "funding_groups": fg,
+        "ownership_verified": False,
     }
 
 
