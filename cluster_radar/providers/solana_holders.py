@@ -243,6 +243,8 @@ class SolanaHolderConcentration:
     ) -> None:
         if max_requests < 2:
             raise ValueError("at least 2 RPC requests required per holder check")
+        if not rpc_url.startswith(("http://", "https://")):
+            raise ValueError("valid http or https rpc_url required")
         self.client = client
         self.rpc_url = rpc_url
         self.max_requests = max_requests

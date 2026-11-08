@@ -110,10 +110,19 @@ def parse_account(mint: str, payload: dict, response_hash: str, known_at: dateti
 
 
 class SolanaAuthorities:
-    def __init__(self, client: httpx.AsyncClient, *, max_requests: int = 100):
+    def __init__(
+        self,
+        client: httpx.AsyncClient,
+        *,
+        max_requests: int = 100,
+        rpc_url: str = RPC_URL,
+    ):
         if max_requests < 1:
             raise ValueError("positive request ceiling required")
+        if not rpc_url.startswith(("http://", "https://")):
+            raise ValueError("valid http or https rpc_url required")
         self.client = client
+        self.rpc_url = rpc_url
         self.max_requests = max_requests
         self.requests = 0
         self._lock = asyncio.Lock()
@@ -128,7 +137,7 @@ class SolanaAuthorities:
             self.requests += 1
             self._next_at = monotonic() + 1.1
             try:
-                response = await self.client.post(RPC_URL, json={"jsonrpc":"2.0", "id":1,
+                response = await self.client.post(self.rpc_url, json={"jsonrpc":"2.0", "id":1,
                     "method":"getAccountInfo", "params":[mint,{"encoding":"base64", "commitment":"finalized"}]}, timeout=10)
                 response.raise_for_status()
                 if len(response.content) > 1_000_000:

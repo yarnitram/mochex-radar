@@ -50,13 +50,15 @@ async def lifespan(app: FastAPI):
     app.state.authority_provider = None
     app.state.holder_provider = None
     async with httpx.AsyncClient() as client:
+        solana_rpc_url = os.environ.get("SOLANA_RPC_URL") or None
         if os.environ.get("SOLANA_AUTHORITIES_ENABLED", "false").lower() == "true":
             authority_dsn = os.environ.get("DATABASE_URL")
             if not authority_dsn:
                 raise ValueError("authority checks require DATABASE_URL")
             await asyncio.to_thread(initialize_authority_store, authority_dsn)
+            auth_kwargs = {"rpc_url": solana_rpc_url} if solana_rpc_url else {}
             app.state.authority_provider = PersistentAuthorities(
-                SolanaAuthorities(client, max_requests=2**63-1), authority_dsn,
+                SolanaAuthorities(client, max_requests=2**63-1, **auth_kwargs), authority_dsn,
                 int(os.environ.get("SOLANA_AUTHORITY_DAILY_REQUESTS", "100")),
             )
         if os.environ.get("SOLANA_HOLDERS_ENABLED", "false").lower() == "true":
@@ -64,8 +66,9 @@ async def lifespan(app: FastAPI):
             if not holder_dsn:
                 raise ValueError("holder checks require DATABASE_URL")
             await asyncio.to_thread(initialize_holder_store, holder_dsn)
+            holder_kwargs = {"rpc_url": solana_rpc_url} if solana_rpc_url else {}
             app.state.holder_provider = PersistentHolderConcentration(
-                SolanaHolderConcentration(client, max_requests=2**63-1),
+                SolanaHolderConcentration(client, max_requests=2**63-1, **holder_kwargs),
                 holder_dsn,
                 int(os.environ.get("SOLANA_HOLDER_DAILY_REQUESTS", "100")),
             )

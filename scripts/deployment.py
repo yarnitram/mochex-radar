@@ -53,6 +53,10 @@ def private_environment(path):
                 or not re.fullmatch(r"[0-9]+:[A-Za-z0-9_-]+", telegram_token)
                 or not re.fullmatch(r"-?[0-9]+", chat_id)):
             raise ValueError("enabled alerts require valid Telegram credentials and send opt-in")
+    if rpc_url := values.get("SOLANA_RPC_URL"):
+        split_rpc = urllib.parse.urlsplit(rpc_url)
+        if split_rpc.scheme not in ("http", "https") or not split_rpc.netloc:
+            raise ValueError("SOLANA_RPC_URL must be a valid http or https URL")
     return values
 
 
