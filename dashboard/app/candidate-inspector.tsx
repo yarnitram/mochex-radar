@@ -65,6 +65,8 @@ const KNOWN_SYMBOLS: Record<string, { symbol: string; label?: string }> = {
   CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump: { symbol: "GOAT", label: "Goatseus Maximus" },
   GJAFwWjJ3vnTsrQVabjBVK2TYB1YtRCQXRDfDgUnpump: { symbol: "ACT", label: "Act I: The AI Prophecy" },
   "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump": { symbol: "FARTCOIN", label: "Fartcoin" },
+  ED5nyyWEzpPPiWimP8vYm7sD7TD3LAt3Q3gRTWHzPJBY: { symbol: "MOODENG", label: "Moo Deng" },
+  "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump": { symbol: "PNUT", label: "Peanut the Squirrel" },
 };
 
 const DEFAULT_WATCHLIST: Array<{ mint: string; symbol: string; label?: string }> = [
@@ -76,6 +78,8 @@ const DEFAULT_WATCHLIST: Array<{ mint: string; symbol: string; label?: string }>
   { mint: "CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump", symbol: "GOAT", label: "Goatseus Maximus" },
   { mint: "GJAFwWjJ3vnTsrQVabjBVK2TYB1YtRCQXRDfDgUnpump", symbol: "ACT", label: "Act I: The AI Prophecy" },
   { mint: "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump", symbol: "FARTCOIN", label: "Fartcoin" },
+  { mint: "ED5nyyWEzpPPiWimP8vYm7sD7TD3LAt3Q3gRTWHzPJBY", symbol: "MOODENG", label: "Moo Deng" },
+  { mint: "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump", symbol: "PNUT", label: "Peanut the Squirrel" },
 ];
 
 export default function CandidateInspector({

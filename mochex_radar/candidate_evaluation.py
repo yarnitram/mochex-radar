@@ -198,7 +198,7 @@ def _build_liquidity_evidence(dex_rows: list[dict]) -> LiquidityRiskEvidence | N
         return None
     cand = dex_rows[0]["candidate"]
     known_at = datetime.fromisoformat(cand["known_at"])
-    liq_raw = cand.get("liquidity_usd")
+    liq_raw = cand.get("dex_liquidity_usd") if cand.get("dex_liquidity_usd") is not None else cand.get("liquidity_usd")
     liq_dec = Decimal(str(liq_raw)) if liq_raw is not None else None
     return LiquidityRiskEvidence(
         stage=MarketStage.DEX,
