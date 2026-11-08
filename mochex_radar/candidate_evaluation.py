@@ -188,6 +188,8 @@ def _evaluate_stored_authority_check(
         "reason": "evaluated",
         "mint_authority_status": ev.get("mint_authority_status"),
         "freeze_authority_status": ev.get("freeze_authority_status"),
+        "mint_authority": ev.get("mint_authority"),
+        "freeze_authority": ev.get("freeze_authority"),
         "extensions": [],
         "flags": flags,
     }
