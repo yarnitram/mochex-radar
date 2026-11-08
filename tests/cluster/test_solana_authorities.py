@@ -115,3 +115,19 @@ def test_public_key_validation_precedes_transport_and_preserves_leading_zeroes()
             assert provider.requests == 0
 
     asyncio.run(run())
+
+def test_custom_rpc_url_routing_and_validation():
+    async def run():
+        def handle(request):
+            assert str(request.url).rstrip("/") == "https://dedicated-rpc.internal:8899"
+            return httpx.Response(200, text=FIXTURE)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
+            with pytest.raises(ValueError, match="valid http or https rpc_url"):
+                SolanaAuthorities(client, rpc_url="ftp://invalid")
+            provider = SolanaAuthorities(client, rpc_url="https://dedicated-rpc.internal:8899")
+            obs = await provider.check(MINT)
+            assert obs.mint == MINT
+            assert obs.slot == 123456
+
+    asyncio.run(run())

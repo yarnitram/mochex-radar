@@ -155,3 +155,11 @@ def test_update_never_builds_or_starts_unverified_candidate(tmp_path):
     runtime = Controlled(source, tmp_path / "state", private_env(tmp_path / "private.env"))
     assert runtime.update()["status"] == "waiting_for_successful_ci"
     assert not (runtime.state / "current.json").exists()
+
+def test_solana_rpc_url_validation_in_private_environment(tmp_path):
+    path = private_env(tmp_path / "private.env")
+    path.write_text(path.read_text() + "SOLANA_RPC_URL=https://solana-rpc.internal:8899\n")
+    assert private_environment(path)["SOLANA_RPC_URL"] == "https://solana-rpc.internal:8899"
+    path.write_text(path.read_text().replace("https://solana-rpc.internal:8899", "ftp://invalid"))
+    with pytest.raises(ValueError, match="SOLANA_RPC_URL must be a valid http or https URL"):
+        private_environment(path)
