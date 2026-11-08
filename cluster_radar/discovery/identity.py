@@ -23,6 +23,7 @@ class Candidate:
     dex_liquidity_usd: Decimal | None
     source: str
     known_at: datetime
+    dex_id: str | None = None
 
     def __post_init__(self) -> None:
         if not self.mint or not self.source:

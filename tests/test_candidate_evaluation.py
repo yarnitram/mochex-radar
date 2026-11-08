@@ -146,6 +146,9 @@ def test_evaluate_stored_candidate_synthesizes_blocked_and_partial_evidence(monk
                     "known_at": known,
                     "source": "dexscreener:token-pairs-v1",
                     "dex_liquidity_usd": "6260788.31",
+                    "pool_id": POOL,
+                    "dex_id": "raydium",
+                    "pool_created_at": "2024-10-31T15:06:46+00:00",
                 }
             }
         ],
@@ -154,6 +157,9 @@ def test_evaluate_stored_candidate_synthesizes_blocked_and_partial_evidence(monk
     assert dex_v2["token_risk"]["checks"]["stage_liquidity"]["status"] == "UNKNOWN"
     assert dex_v2["token_risk"]["checks"]["stage_liquidity"]["dex_liquidity_usd"] == "6260788.31"
     assert dex_v2["token_risk"]["checks"]["stage_liquidity"]["sell_depth_2pct_usd"] is None
+    assert dex_v2["token_risk"]["checks"]["stage_liquidity"]["pool_id"] == POOL
+    assert dex_v2["token_risk"]["checks"]["stage_liquidity"]["dex_id"] == "raydium"
+    assert dex_v2["token_risk"]["checks"]["stage_liquidity"]["pool_created_at"] == "2024-10-31T15:06:46+00:00"
 
 
 def test_history_scoring_integration_gates_incomplete_coverage_and_shared_references(monkeypatch) -> None:

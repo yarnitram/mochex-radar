@@ -417,6 +417,14 @@ def evaluate_stored_candidate(
 
     mint_check = _evaluate_stored_authority_check(auth_rows, cutoff)
     liquidity_check = evaluate_stage_liquidity(_build_liquidity_evidence(dex_rows), as_of=cutoff)
+    if dex_rows:
+        cand = dex_rows[0].get("candidate") or {}
+        if cand.get("pool_id"):
+            liquidity_check["pool_id"] = cand.get("pool_id")
+        if cand.get("dex_id"):
+            liquidity_check["dex_id"] = cand.get("dex_id")
+        if cand.get("pool_created_at"):
+            liquidity_check["pool_created_at"] = cand.get("pool_created_at")
     holder_check = evaluate_holder_concentration(_build_holder_evidence(hold_rows), as_of=cutoff)
     # Largest token accounts do not establish controller ownership or lock state.
     # Concentration warnings remain useful, but low account shares cannot certify

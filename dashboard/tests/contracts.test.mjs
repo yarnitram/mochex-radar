@@ -352,6 +352,9 @@ test("candidate evaluation contract enforces fail-closed risk and signals disabl
           reason: "evaluated",
           dex_liquidity_usd: "500.0",
           sell_depth_2pct_usd: "100.0",
+          pool_id: "4".repeat(32),
+          dex_id: "raydium",
+          pool_created_at: now,
           flags: ["critical_low_dex_liquidity", "critical_low_sell_depth"],
         },
         holder_concentration: {
