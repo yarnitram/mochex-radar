@@ -519,6 +519,8 @@ export const candidateEvaluationSchema = z
           reason: z.string(),
           mint_authority_status: z.string().optional(),
           freeze_authority_status: z.string().optional(),
+          mint_authority: z.string().nullable().optional(),
+          freeze_authority: z.string().nullable().optional(),
           extensions: z.array(z.any()).optional(),
           flags: z.array(z.string()),
         }),

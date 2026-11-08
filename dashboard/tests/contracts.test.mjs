@@ -341,6 +341,8 @@ test("candidate evaluation contract enforces fail-closed risk and signals disabl
           reason: "evaluated",
           mint_authority_status: "DISABLED",
           freeze_authority_status: "DISABLED",
+          mint_authority: null,
+          freeze_authority: null,
           extensions: [],
           flags: [],
         },

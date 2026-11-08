@@ -17,6 +17,8 @@ type EvaluationResult = {
         reason: string;
         mint_authority_status?: string;
         freeze_authority_status?: string;
+        mint_authority?: string | null;
+        freeze_authority?: string | null;
         flags: string[];
       };
       stage_liquidity: {
@@ -743,10 +745,32 @@ export default function CandidateInspector({
                     <span>
                       Mint auth:{" "}
                       {result.token_risk.checks.mint_and_extensions
-                        .mint_authority_status || "UNKNOWN"}{" "}
+                        .mint_authority_status || "UNKNOWN"}
+                      {result.token_risk.checks.mint_and_extensions.mint_authority && (
+                        <button
+                          type="button"
+                          className="badge"
+                          style={{ cursor: "pointer", fontSize: "9px", padding: "1px 5px", marginLeft: "4px" }}
+                          onClick={() => window.dispatchEvent(new CustomEvent("select-wallet-address", { detail: result.token_risk.checks.mint_and_extensions.mint_authority }))}
+                          title={`Inspect mint authority wallet ${result.token_risk.checks.mint_and_extensions.mint_authority}`}
+                        >
+                          Inspect {result.token_risk.checks.mint_and_extensions.mint_authority.slice(0, 4)}…
+                        </button>
+                      )}{" "}
                       · Freeze auth:{" "}
                       {result.token_risk.checks.mint_and_extensions
                         .freeze_authority_status || "UNKNOWN"}
+                      {result.token_risk.checks.mint_and_extensions.freeze_authority && (
+                        <button
+                          type="button"
+                          className="badge"
+                          style={{ cursor: "pointer", fontSize: "9px", padding: "1px 5px", marginLeft: "4px" }}
+                          onClick={() => window.dispatchEvent(new CustomEvent("select-wallet-address", { detail: result.token_risk.checks.mint_and_extensions.freeze_authority }))}
+                          title={`Inspect freeze authority wallet ${result.token_risk.checks.mint_and_extensions.freeze_authority}`}
+                        >
+                          Inspect {result.token_risk.checks.mint_and_extensions.freeze_authority.slice(0, 4)}…
+                        </button>
+                      )}
                     </span>
                     {result.token_risk.checks.mint_and_extensions.flags
                       .length > 0 && (
