@@ -6,6 +6,7 @@ import FeaturesPanel from "./features-panel";
 import ResearchPanel from "./research-panel";
 import CategoriesPanel from "./categories-panel";
 import CandidateInspector from "./candidate-inspector";
+import WalletInspector from "./wallet-inspector";
 import DiscoveryPanel from "./discovery-panel";
 import AuthorityPanel from "./authority-panel";
 
@@ -121,6 +122,9 @@ export default function Dashboard() {
           </a>
           <a href="#candidate">
             <span>☵</span> Candidate inspector
+          </a>
+          <a href="#wallet">
+            <span>⎌</span> Wallet intelligence
           </a>
           <a href="#dex">
             <span>⌁</span> DEX radar
@@ -402,6 +406,7 @@ export default function Dashboard() {
         <ResearchPanel snapshot={snapshot} outdated={failed} />
         <CategoriesPanel snapshot={snapshot} outdated={failed} />
         <CandidateInspector snapshot={snapshot} outdated={failed} />
+        <WalletInspector snapshot={snapshot} outdated={failed} />
         <AuthorityPanel snapshot={snapshot} outdated={failed} />
         <DiscoveryPanel snapshot={snapshot} outdated={failed} />
         <section className="panel" id="dex">

@@ -29,9 +29,20 @@ function Permission({
         {state === "DISABLED" ? "absent" : state.toLowerCase()}
       </span>
       {address && (
-        <small className="provenance" title={address}>
-          {address}
-        </small>
+        <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "2px" }}>
+          <small className="provenance" title={address}>
+            {address}
+          </small>
+          <button
+            type="button"
+            className="badge"
+            style={{ cursor: "pointer", fontSize: "9px", padding: "1px 5px" }}
+            onClick={() => window.dispatchEvent(new CustomEvent("select-wallet-address", { detail: address }))}
+            title={`Inspect wallet history for ${address}`}
+          >
+            Inspect
+          </button>
+        </div>
       )}
     </>
   );
