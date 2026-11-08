@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Snapshot } from "@/lib/contracts";
 
 type EvaluationResult = {
@@ -130,6 +130,21 @@ export default function CandidateInspector({
     }
   }
 
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const custom = e as CustomEvent<string>;
+      if (custom.detail) {
+        const target = custom.detail.trim();
+        setMintInput(target);
+        void handleInspect(target, false);
+        const el = document.getElementById("candidate");
+        if (el) el.scrollIntoView({ behavior: "smooth" });
+      }
+    };
+    window.addEventListener("select-candidate-mint", handler);
+    return () => window.removeEventListener("select-candidate-mint", handler);
+  }, []);
+
   async function handleInspect(targetMint?: string, refresh: boolean = false) {
     const mintToInspect = (targetMint || mintInput).trim();
     if (!mintToInspect) return;
@@ -138,7 +153,14 @@ export default function CandidateInspector({
     setError(null);
     try {
       const url = `/api/candidate?mint=${encodeURIComponent(mintToInspect)}${refresh ? "&refresh=true" : ""}`;
-      const response = await fetch(url, { cache: "no-store" });
+      let response = await fetch(url, { cache: "no-store" });
+      if (!response.ok && !refresh && response.status === 503) {
+        // Fall back to on-demand observation if stored evaluation not yet available
+        response = await fetch(
+          `/api/candidate?mint=${encodeURIComponent(mintToInspect)}&refresh=true`,
+          { cache: "no-store" },
+        );
+      }
       if (!response.ok) {
         throw new Error(
           response.status === 400

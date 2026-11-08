@@ -130,9 +130,20 @@ export default function AuthorityPanel({
                   key={`${row.evidence.mint}:${row.evidence.source}:${row.evidence.known_at}`}
                 >
                   <td>
-                    <span className="mint" title={row.evidence.mint}>
-                      {row.evidence.mint}
-                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <span className="mint" title={row.evidence.mint}>
+                        {row.evidence.mint}
+                      </span>
+                      <button
+                        type="button"
+                        className="badge"
+                        style={{ cursor: "pointer", fontSize: "10px", padding: "2px 6px" }}
+                        onClick={() => window.dispatchEvent(new CustomEvent("select-candidate-mint", { detail: row.evidence.mint }))}
+                        title={`Inspect candidate ${row.evidence.mint}`}
+                      >
+                        Inspect
+                      </button>
+                    </div>
                     <small className="provenance" title={row.evidence.source}>
                       {row.evidence.source}
                     </small>

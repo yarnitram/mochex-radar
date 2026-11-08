@@ -90,9 +90,22 @@ export default function CategoriesPanel({
                   {filtered.map((asset) => (
                     <tr key={asset.asset_id}>
                       <td>
-                        <span className="mint" title={asset.asset_id}>
-                          {asset.asset_id}
-                        </span>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <span className="mint" title={asset.asset_id}>
+                            {asset.asset_id}
+                          </span>
+                          {asset.asset_id.startsWith("solana:mint:") && (
+                            <button
+                              type="button"
+                              className="badge"
+                              style={{ cursor: "pointer", fontSize: "10px", padding: "2px 6px" }}
+                              onClick={() => window.dispatchEvent(new CustomEvent("select-candidate-mint", { detail: asset.asset_id.replace(/^solana:mint:/, "") }))}
+                              title={`Inspect candidate ${asset.asset_id.replace(/^solana:mint:/, "")}`}
+                            >
+                              Inspect
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td>
                         <span>{asset.asset_class.replaceAll("_", " ")}</span>

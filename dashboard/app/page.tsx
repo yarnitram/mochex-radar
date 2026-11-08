@@ -438,9 +438,20 @@ export default function Dashboard() {
                   {scans.map((scan) => (
                     <tr key={scan.id}>
                       <td>
-                        <span className="mint" title={scan.mint}>
-                          {scan.mint}
-                        </span>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <span className="mint" title={scan.mint}>
+                            {scan.mint}
+                          </span>
+                          <button
+                            type="button"
+                            className="badge"
+                            style={{ cursor: "pointer", fontSize: "10px", padding: "2px 6px" }}
+                            onClick={() => window.dispatchEvent(new CustomEvent("select-candidate-mint", { detail: scan.mint }))}
+                            title={`Inspect candidate ${scan.mint}`}
+                          >
+                            Inspect
+                          </button>
+                        </div>
                         <small className="provenance">
                           {scan.category_source}
                         </small>

@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     : {};
 
   if (refresh) {
-    // Attempt best-effort on-demand authority and pool observation
+    // Attempt best-effort on-demand authority, pool, and holder observation
     await Promise.allSettled([
       fetch(new URL(`/api/v1/security/solana/${mint}/authorities`, origin), {
         headers: authHeader,
@@ -27,6 +27,11 @@ export async function GET(request: Request) {
         signal: AbortSignal.timeout(4000),
       }),
       fetch(new URL(`/api/v1/dex/solana/${mint}/pools`, origin), {
+        headers: authHeader,
+        cache: "no-store",
+        signal: AbortSignal.timeout(4000),
+      }),
+      fetch(new URL(`/api/v1/security/solana/${mint}/holders`, origin), {
         headers: authHeader,
         cache: "no-store",
         signal: AbortSignal.timeout(4000),
