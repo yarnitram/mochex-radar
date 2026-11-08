@@ -31,11 +31,13 @@ class HolderSnapshotObservation:
     reason: str
     response_hash: str
     total_supply_raw: int | None
-    top_1_unlocked_pct: Decimal | None
-    top_10_unlocked_pct: Decimal | None
-    concentration_status: str
-    concentration_flags: tuple[str, ...]
-    holder_evidence: HolderRiskEvidence | None
+    top_1_account_pct: Decimal | None = None
+    top_10_account_pct: Decimal | None = None
+    top_1_unlocked_pct: Decimal | None = None
+    top_10_unlocked_pct: Decimal | None = None
+    concentration_status: str = "UNKNOWN"
+    concentration_flags: tuple[str, ...] = ()
+    holder_evidence: HolderRiskEvidence | None = None
     excluded_accounts_count: int = 0
     source: str = field(default=HOLDER_SOURCE, init=False)
     parser_version: str = field(default=HOLDER_PARSER_VERSION, init=False)
@@ -44,6 +46,26 @@ class HolderSnapshotObservation:
     evidence_scope: str = field(default="token_accounts_only", init=False)
     ownership_verified: bool = field(default=False, init=False)
     locks_verified: bool = field(default=False, init=False)
+
+    def __post_init__(self) -> None:
+        t1 = self.top_1_account_pct if self.top_1_account_pct is not None else self.top_1_unlocked_pct
+        t10 = self.top_10_account_pct if self.top_10_account_pct is not None else self.top_10_unlocked_pct
+        if (
+            self.top_1_account_pct is not None
+            and self.top_1_unlocked_pct is not None
+            and self.top_1_account_pct != self.top_1_unlocked_pct
+        ):
+            raise ValueError("top_1_account_pct and top_1_unlocked_pct must match")
+        if (
+            self.top_10_account_pct is not None
+            and self.top_10_unlocked_pct is not None
+            and self.top_10_account_pct != self.top_10_unlocked_pct
+        ):
+            raise ValueError("top_10_account_pct and top_10_unlocked_pct must match")
+        object.__setattr__(self, "top_1_account_pct", t1)
+        object.__setattr__(self, "top_10_account_pct", t10)
+        object.__setattr__(self, "top_1_unlocked_pct", t1)
+        object.__setattr__(self, "top_10_unlocked_pct", t10)
 
 
 def _validate_rpc_envelope(payload: dict, expected_id: int) -> tuple[int, object]:
@@ -181,6 +203,8 @@ def parse_holder_concentration(
     evidence = HolderRiskEvidence(
         known_at=known_at,
         source=HOLDER_SOURCE,
+        top_1_account_pct=top_1_pct,
+        top_10_account_pct=top_10_pct,
         top_1_unlocked_pct=top_1_pct,
         top_10_unlocked_pct=top_10_pct,
         excluded_known_accounts=tuple(sorted(excluded_list)),
@@ -197,6 +221,8 @@ def parse_holder_concentration(
         reason=evaluated["reason"],
         response_hash=response_hash,
         total_supply_raw=total_supply_raw,
+        top_1_account_pct=top_1_pct,
+        top_10_account_pct=top_10_pct,
         top_1_unlocked_pct=top_1_pct,
         top_10_unlocked_pct=top_10_pct,
         concentration_status=evaluated["status"],
