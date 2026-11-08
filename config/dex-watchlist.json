@@ -1,4 +1,45 @@
 {
   "version": 1,
-  "tokens": []
+  "tokens": [
+    {
+      "mint": "So11111111111111111111111111111111111111112",
+      "categories": ["unclassified"],
+      "category_source": "operator:wrapped-sol"
+    },
+    {
+      "mint": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+      "categories": ["meme"],
+      "category_source": "operator:bonk"
+    },
+    {
+      "mint": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
+      "categories": ["meme"],
+      "category_source": "operator:dogwifhat"
+    },
+    {
+      "mint": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr",
+      "categories": ["meme"],
+      "category_source": "operator:popcat"
+    },
+    {
+      "mint": "MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5",
+      "categories": ["meme"],
+      "category_source": "operator:cat-in-a-dogs-world"
+    },
+    {
+      "mint": "CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump",
+      "categories": ["meme", "ai"],
+      "category_source": "operator:goatseus-maximus"
+    },
+    {
+      "mint": "GJAFwWjJ3vnTsrQVabjBVK2TYB1YtRCQXRDfDgUnpump",
+      "categories": ["ai"],
+      "category_source": "operator:act-i-ai-prophecy"
+    },
+    {
+      "mint": "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump",
+      "categories": ["meme", "ai"],
+      "category_source": "operator:fartcoin"
+    }
+  ]
 }
