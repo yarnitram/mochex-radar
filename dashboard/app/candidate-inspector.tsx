@@ -56,6 +56,28 @@ type EvaluationResult = {
 const date = (value: string) =>
   new Date(value).toLocaleString(undefined, { hour12: false });
 
+const KNOWN_SYMBOLS: Record<string, { symbol: string; label?: string }> = {
+  So11111111111111111111111111111111111111112: { symbol: "WSOL", label: "Wrapped SOL" },
+  DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263: { symbol: "BONK", label: "Bonk" },
+  EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm: { symbol: "WIF", label: "dogwifhat" },
+  "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr": { symbol: "POPCAT", label: "Popcat" },
+  MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5: { symbol: "MEW", label: "cat in a dogs world" },
+  CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump: { symbol: "GOAT", label: "Goatseus Maximus" },
+  GJAFwWjJ3vnTsrQVabjBVK2TYB1YtRCQXRDfDgUnpump: { symbol: "ACT", label: "Act I: The AI Prophecy" },
+  "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump": { symbol: "FARTCOIN", label: "Fartcoin" },
+};
+
+const DEFAULT_WATCHLIST: Array<{ mint: string; symbol: string; label?: string }> = [
+  { mint: "So11111111111111111111111111111111111111112", symbol: "WSOL", label: "Wrapped SOL" },
+  { mint: "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263", symbol: "BONK", label: "Bonk" },
+  { mint: "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", symbol: "WIF", label: "dogwifhat" },
+  { mint: "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr", symbol: "POPCAT", label: "Popcat" },
+  { mint: "MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5", symbol: "MEW", label: "cat in a dogs world" },
+  { mint: "CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump", symbol: "GOAT", label: "Goatseus Maximus" },
+  { mint: "GJAFwWjJ3vnTsrQVabjBVK2TYB1YtRCQXRDfDgUnpump", symbol: "ACT", label: "Act I: The AI Prophecy" },
+  { mint: "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump", symbol: "FARTCOIN", label: "Fartcoin" },
+];
+
 export default function CandidateInspector({
   snapshot,
   outdated,
@@ -68,27 +90,51 @@ export default function CandidateInspector({
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<EvaluationResult | null>(null);
 
-  // Extract up to 3 suggested mints from loaded catalog / authorities
+  // Build watchlist tokens list from scans or fallback to default
+  const watchlistTokens: Array<{ mint: string; symbol: string; label?: string }> = [];
+  const seenMints = new Set<string>();
+  const scans = snapshot?.scans?.data?.scans || [];
+  for (const scan of scans) {
+    if (seenMints.has(scan.mint)) continue;
+    seenMints.add(scan.mint);
+    const known = KNOWN_SYMBOLS[scan.mint];
+    if (known) {
+      watchlistTokens.push({ mint: scan.mint, ...known });
+    } else {
+      const derived =
+        scan.category_source?.replace(/^operator:/, "").toUpperCase() ||
+        `${scan.mint.slice(0, 4)}…`;
+      watchlistTokens.push({ mint: scan.mint, symbol: derived });
+    }
+  }
+  if (watchlistTokens.length === 0) {
+    for (const item of DEFAULT_WATCHLIST) {
+      watchlistTokens.push(item);
+      seenMints.add(item.mint);
+    }
+  }
+
+  // Extract up to 6 suggested discovered mints from loaded catalog
   const suggestedMints: string[] = [];
   const catalog = snapshot?.catalog?.data;
   if (catalog?.status === "current_catalog") {
     for (const item of catalog.mints) {
-      if (!suggestedMints.includes(item.mint)) suggestedMints.push(item.mint);
-      if (suggestedMints.length >= 3) break;
+      if (!seenMints.has(item.mint) && !suggestedMints.includes(item.mint)) {
+        suggestedMints.push(item.mint);
+      }
+      if (suggestedMints.length >= 6) break;
     }
   }
 
-  async function handleInspect(targetMint?: string) {
+  async function handleInspect(targetMint?: string, refresh: boolean = false) {
     const mintToInspect = (targetMint || mintInput).trim();
     if (!mintToInspect) return;
     setMintInput(mintToInspect);
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch(
-        `/api/candidate?mint=${encodeURIComponent(mintToInspect)}`,
-        { cache: "no-store" },
-      );
+      const url = `/api/candidate?mint=${encodeURIComponent(mintToInspect)}${refresh ? "&refresh=true" : ""}`;
+      const response = await fetch(url, { cache: "no-store" });
       if (!response.ok) {
         throw new Error(
           response.status === 400
@@ -111,6 +157,12 @@ export default function CandidateInspector({
     }
   }
 
+  function handleClear() {
+    setMintInput("");
+    setResult(null);
+    setError(null);
+  }
+
   return (
     <section
       className="panel"
@@ -130,6 +182,111 @@ export default function CandidateInspector({
         </span>
       </div>
 
+      <div
+        className="discovery-note"
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+          padding: "12px 22px",
+          borderBottom: "1px solid var(--line, #1f2d38)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            flexWrap: "wrap",
+          }}
+        >
+          <span
+            style={{
+              fontSize: "10px",
+              color: "var(--muted)",
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+            }}
+          >
+            Watchlist:
+          </span>
+          {watchlistTokens.map((t) => {
+            const isSelected =
+              result?.mint === t.mint || mintInput.trim() === t.mint;
+            return (
+              <button
+                key={t.mint}
+                type="button"
+                className={`badge ${isSelected ? "current" : ""}`}
+                style={{
+                  cursor: "pointer",
+                  border: isSelected
+                    ? "1px solid #3c5145"
+                    : "1px solid #23303b",
+                  padding: "4px 8px",
+                  fontSize: "10px",
+                  background: isSelected ? "#1e3829" : undefined,
+                  color: isSelected ? "#a1e4b4" : undefined,
+                }}
+                onClick={() => void handleInspect(t.mint)}
+                title={`${t.label || t.symbol}: ${t.mint}`}
+                aria-pressed={isSelected}
+              >
+                {t.symbol}
+              </button>
+            );
+          })}
+        </div>
+
+        {suggestedMints.length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              flexWrap: "wrap",
+            }}
+          >
+            <span
+              style={{
+                fontSize: "10px",
+                color: "var(--muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+              }}
+            >
+              Discovered:
+            </span>
+            {suggestedMints.map((m) => {
+              const isSelected =
+                result?.mint === m || mintInput.trim() === m;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  className={`badge ${isSelected ? "current" : ""}`}
+                  style={{
+                    cursor: "pointer",
+                    border: isSelected
+                      ? "1px solid #3c5145"
+                      : "1px solid #23303b",
+                    padding: "4px 8px",
+                    fontSize: "10px",
+                    background: isSelected ? "#1e3829" : undefined,
+                    color: isSelected ? "#a1e4b4" : undefined,
+                  }}
+                  onClick={() => void handleInspect(m)}
+                  title={m}
+                  aria-pressed={isSelected}
+                >
+                  {m.slice(0, 6)}…{m.slice(-4)}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       <div className="discovery-controls">
         <label>
           Inspect candidate mint
@@ -141,29 +298,46 @@ export default function CandidateInspector({
             onChange={(e) => setMintInput(e.target.value)}
           />
         </label>
-        <button
-          onClick={() => void handleInspect()}
-          disabled={busy || !mintInput.trim()}
+        <div
+          style={{
+            display: "flex",
+            gap: "8px",
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
         >
-          {busy ? "Evaluating…" : "Inspect candidate"}
-        </button>
-      </div>
-
-      {suggestedMints.length > 0 && !result && (
-        <div className="discovery-note">
-          <span>Observed catalog suggestions: </span>
-          {suggestedMints.map((m) => (
+          <button
+            onClick={() => void handleInspect()}
+            disabled={busy || !mintInput.trim()}
+          >
+            {busy ? "Evaluating…" : "Inspect candidate"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleInspect(undefined, true)}
+            disabled={busy || !mintInput.trim()}
+            title="Perform on-chain authority & pool observation check"
+          >
+            {busy ? "Querying…" : "Inspect & Refresh"}
+          </button>
+          {(result || mintInput) && (
             <button
-              key={m}
-              className="badge"
-              style={{ cursor: "pointer", marginRight: "6px", border: "none" }}
-              onClick={() => void handleInspect(m)}
+              type="button"
+              onClick={handleClear}
+              style={{
+                background: "transparent",
+                border: "1px solid #394b59",
+                color: "var(--muted)",
+                padding: "8px 12px",
+                borderRadius: "4px",
+                fontSize: "11px",
+              }}
             >
-              {m.slice(0, 8)}…{m.slice(-4)}
+              Clear
             </button>
-          ))}
+          )}
         </div>
-      )}
+      </div>
 
       {error && (
         <div className="notice" role="alert">
