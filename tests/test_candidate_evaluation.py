@@ -131,9 +131,29 @@ def test_evaluate_stored_candidate_synthesizes_blocked_and_partial_evidence(monk
         partial["token_risk"]["checks"]["stage_liquidity"]["reason"]
         == "incomplete_dex_liquidity_or_depth"
     )
+    assert partial["token_risk"]["checks"]["stage_liquidity"]["dex_liquidity_usd"] == "50000"
+    assert partial["token_risk"]["checks"]["stage_liquidity"]["sell_depth_2pct_usd"] is None
     assert partial["token_risk"]["security_status"] == "UNKNOWN"
     assert partial["candidate_state"]["state"] == "DISCOVERED"
     assert partial["candidate_state"]["approved_live_signal"] is False
+
+    # Case 3: observation_history provides dex_liquidity_usd key (real dex observation format)
+    monkeypatch.setattr(
+        "mochex_radar.candidate_evaluation.observation_history",
+        lambda _dsn, _mint, _cutoff, limit=1: [
+            {
+                "candidate": {
+                    "known_at": known,
+                    "source": "dexscreener:token-pairs-v1",
+                    "dex_liquidity_usd": "6260788.31",
+                }
+            }
+        ],
+    )
+    dex_v2 = evaluate_stored_candidate("postgresql://unused", MINT, as_of=as_of)
+    assert dex_v2["token_risk"]["checks"]["stage_liquidity"]["status"] == "UNKNOWN"
+    assert dex_v2["token_risk"]["checks"]["stage_liquidity"]["dex_liquidity_usd"] == "6260788.31"
+    assert dex_v2["token_risk"]["checks"]["stage_liquidity"]["sell_depth_2pct_usd"] is None
 
 
 def test_history_scoring_integration_gates_incomplete_coverage_and_shared_references(monkeypatch) -> None:

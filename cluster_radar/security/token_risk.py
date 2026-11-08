@@ -401,7 +401,14 @@ def evaluate_stage_liquidity(
         return {"status": SecurityStatus.UNKNOWN.value, "reason": "missing_liquidity_evidence", "flags": []}
     freshness_issue = _fresh_check(evidence.known_at, as_of)
     if freshness_issue:
-        return {"status": SecurityStatus.UNKNOWN.value, "reason": freshness_issue, "flags": [freshness_issue]}
+        return {
+            "status": SecurityStatus.UNKNOWN.value,
+            "stage": evidence.stage.value if hasattr(evidence.stage, "value") else str(evidence.stage),
+            "reason": freshness_issue,
+            "dex_liquidity_usd": evidence.dex_liquidity_usd,
+            "sell_depth_2pct_usd": evidence.sell_depth_2pct_usd,
+            "flags": [freshness_issue],
+        }
 
     flags: list[str] = []
     if evidence.stage is MarketStage.CURVE:
@@ -435,6 +442,8 @@ def evaluate_stage_liquidity(
             "status": SecurityStatus.UNKNOWN.value,
             "stage": "DEX",
             "reason": "incomplete_dex_liquidity_or_depth",
+            "dex_liquidity_usd": evidence.dex_liquidity_usd,
+            "sell_depth_2pct_usd": evidence.sell_depth_2pct_usd,
             "flags": ["incomplete_dex_liquidity_or_depth"],
         }
     blocked = False

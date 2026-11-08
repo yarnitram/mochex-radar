@@ -125,7 +125,10 @@ def test_stage_liquidity_and_holder_concentration_fail_closed():
         dex_liquidity_usd=Decimal(15000),
         sell_depth_2pct_usd=None,
     )
-    assert evaluate_stage_liquidity(missing_depth, as_of=NOW)["status"] == "UNKNOWN"
+    res_missing = evaluate_stage_liquidity(missing_depth, as_of=NOW)
+    assert res_missing["status"] == "UNKNOWN"
+    assert res_missing["dex_liquidity_usd"] == Decimal(15000)
+    assert res_missing["sell_depth_2pct_usd"] is None
 
     curve_ok = LiquidityRiskEvidence(
         MarketStage.CURVE,
