@@ -560,3 +560,61 @@ export const candidateEvaluationSchema = z
     }),
   })
   .strict();
+
+
+export const walletHistoryBatchSchema = z
+  .object({
+    batch_id: z.string().regex(/^[0-9a-f]{64}$/),
+    provenance: z.object({
+      source: z.string(),
+      parser_version: z.string(),
+      wallet: key,
+      window_start: timestamp,
+      window_end: timestamp,
+      retrieved_at: timestamp,
+      raw_sha256: z.string().regex(/^[0-9a-f]{64}$/),
+      pagination_exhausted: z.boolean(),
+      coverage_verified: z.literal(false),
+    }),
+    completeness: z.literal("unverified"),
+    signals_enabled: z.literal(false),
+  })
+  .strict();
+
+export const fundingGroupSchema = z
+  .object({
+    funder: key,
+    wallets: z.array(key),
+    signatures: z.array(z.string()),
+    sources: z.array(z.string()),
+    conclusion: z.literal("potential_shared_funding_only"),
+  })
+  .strict();
+
+export const walletFundingGroupsSchema = z
+  .object({
+    as_of: z.union([timestamp, z.string()]),
+    groups: z.array(fundingGroupSchema),
+    ownership_verified: z.literal(false),
+    conflicting_wallets: z.array(key),
+  })
+  .strict();
+
+export const walletHistoryOverviewSchema = z
+  .object({
+    data_status: z.literal("stored_history"),
+    wallet: key,
+    as_of: timestamp,
+    batches_count: z.number().int().nonnegative(),
+    batches: z.array(walletHistoryBatchSchema),
+    funding_count: z.number().int().nonnegative(),
+    funding_groups: walletFundingGroupsSchema,
+    completeness: z.literal("unverified"),
+    signals_enabled: z.literal(false),
+  })
+  .strict();
+
+export type WalletHistoryBatch = z.infer<typeof walletHistoryBatchSchema>;
+export type FundingGroup = z.infer<typeof fundingGroupSchema>;
+export type WalletFundingGroups = z.infer<typeof walletFundingGroupsSchema>;
+export type WalletHistoryOverview = z.infer<typeof walletHistoryOverviewSchema>;

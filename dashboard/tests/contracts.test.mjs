@@ -9,6 +9,7 @@ import {
   researchSchema,
   categoriesSchema,
   candidateEvaluationSchema,
+  walletHistoryOverviewSchema,
 } from "../lib/contracts.ts";
 import { catalog, polls } from "./discovery-fixture.mjs";
 import { authorities } from "./authority-fixture.mjs";
@@ -388,5 +389,63 @@ test("candidate evaluation contract enforces fail-closed risk and signals disabl
     { ...valid, candidate_state: { ...valid.candidate_state, state: "INVALID_STATE" } },
   ]) {
     assert.equal(candidateEvaluationSchema.safeParse(invalid).success, false);
+  }
+});
+
+test("wallet history overview contract enforces completeness unverified and signals disabled", () => {
+  const wallet = "1".repeat(32);
+  const now = "2026-11-08T00:00:00.000Z";
+  const valid = {
+    data_status: "stored_history",
+    wallet,
+    as_of: now,
+    batches_count: 1,
+    batches: [
+      {
+        batch_id: "a".repeat(64),
+        provenance: {
+          source: "solana-rpc",
+          parser_version: "v1",
+          wallet,
+          window_start: "2026-11-07T00:00:00.000Z",
+          window_end: now,
+          retrieved_at: now,
+          raw_sha256: "b".repeat(64),
+          pagination_exhausted: true,
+          coverage_verified: false,
+        },
+        completeness: "unverified",
+        signals_enabled: false,
+      },
+    ],
+    funding_count: 1,
+    funding_groups: {
+      as_of: now,
+      groups: [
+        {
+          funder: "2".repeat(32),
+          wallets: [wallet, "3".repeat(32)],
+          signatures: ["sig1"],
+          sources: ["solana-rpc"],
+          conclusion: "potential_shared_funding_only",
+        },
+      ],
+      ownership_verified: false,
+      conflicting_wallets: [],
+    },
+    completeness: "unverified",
+    signals_enabled: false,
+  };
+
+  assert.equal(walletHistoryOverviewSchema.parse(valid).wallet, wallet);
+
+  for (const invalid of [
+    { ...valid, signals_enabled: true },
+    { ...valid, completeness: "verified" },
+    { ...valid, funding_groups: { ...valid.funding_groups, ownership_verified: true } },
+    { ...valid, batches: [{ ...valid.batches[0], provenance: { ...valid.batches[0].provenance, coverage_verified: true } }] },
+    { ...valid, extra_field: "disallowed" },
+  ]) {
+    assert.equal(walletHistoryOverviewSchema.safeParse(invalid).success, false);
   }
 });
