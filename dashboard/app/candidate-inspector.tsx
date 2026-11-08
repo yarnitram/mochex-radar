@@ -46,6 +46,7 @@ type EvaluationResult = {
     security_status: string;
     pump_score?: string | null;
     dump_score?: string | null;
+    dump_warning_groups?: number | unknown[] | null;
     blocking_gates: string[];
     provisional: boolean;
     approved_live_signal: boolean;
@@ -55,6 +56,14 @@ type EvaluationResult = {
 
 const date = (value: string) =>
   new Date(value).toLocaleString(undefined, { hour12: false });
+
+const PINNED_STORAGE_KEY = "mochex_radar_pinned_mints";
+
+interface PinnedToken {
+  mint: string;
+  symbol: string;
+  label?: string;
+}
 
 const KNOWN_SYMBOLS: Record<string, { symbol: string; label?: string }> = {
   So11111111111111111111111111111111111111112: { symbol: "WSOL", label: "Wrapped SOL" },
@@ -93,6 +102,8 @@ export default function CandidateInspector({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<EvaluationResult | null>(null);
+  const [pinnedTokens, setPinnedTokens] = useState<PinnedToken[]>([]);
+  const [copied, setCopied] = useState(false);
 
   // Build watchlist tokens list from scans or fallback to default
   const watchlistTokens: Array<{ mint: string; symbol: string; label?: string }> = [];
@@ -127,6 +138,39 @@ export default function CandidateInspector({
         suggestedMints.push(item.mint);
       }
       if (suggestedMints.length >= 6) break;
+    }
+  }
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PINNED_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          setPinnedTokens(parsed);
+        }
+      }
+    } catch {
+      // Ignore localStorage availability issues
+    }
+  }, []);
+
+  function handleTogglePin(mint: string, symbolHint?: string) {
+    const isPinned = pinnedTokens.some((p) => p.mint === mint);
+    let updated: PinnedToken[];
+    if (isPinned) {
+      updated = pinnedTokens.filter((p) => p.mint !== mint);
+    } else {
+      const known = KNOWN_SYMBOLS[mint];
+      const symbol = symbolHint || known?.symbol || `${mint.slice(0, 4)}…`;
+      const label = known?.label;
+      updated = [...pinnedTokens, { mint, symbol, label }];
+    }
+    setPinnedTokens(updated);
+    try {
+      localStorage.setItem(PINNED_STORAGE_KEY, JSON.stringify(updated));
+    } catch {
+      // Ignore
     }
   }
 
@@ -218,6 +262,83 @@ export default function CandidateInspector({
           borderBottom: "1px solid var(--line, #1f2d38)",
         }}
       >
+        {pinnedTokens.length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              flexWrap: "wrap",
+            }}
+          >
+            <span
+              style={{
+                fontSize: "10px",
+                color: "#f0c674",
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+              }}
+            >
+              ★ Pinned ({pinnedTokens.length}):
+            </span>
+            {pinnedTokens.map((t) => {
+              const isSelected =
+                result?.mint === t.mint || mintInput.trim() === t.mint;
+              return (
+                <span
+                  key={t.mint}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    borderRadius: "4px",
+                    background: isSelected ? "#2a3d24" : "#1b252f",
+                    border: isSelected ? "1px solid #4ade80" : "1px solid #2d3e4f",
+                    padding: "2px 6px",
+                    gap: "4px",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => void handleInspect(t.mint)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: isSelected ? "#a1e4b4" : "var(--foreground, #e2e8f0)",
+                      cursor: "pointer",
+                      fontSize: "10px",
+                      fontWeight: 500,
+                      padding: 0,
+                    }}
+                    title={`${t.label || t.symbol}: ${t.mint}`}
+                  >
+                    {t.symbol}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleTogglePin(t.mint);
+                    }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "var(--muted, #64748b)",
+                      cursor: "pointer",
+                      fontSize: "12px",
+                      lineHeight: 1,
+                      padding: "0 2px",
+                    }}
+                    title="Unpin token"
+                    aria-label={`Unpin ${t.symbol}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              );
+            })}
+          </div>
+        )}
         <div
           style={{
             display: "flex",
@@ -346,6 +467,41 @@ export default function CandidateInspector({
           >
             {busy ? "Querying…" : "Inspect & Refresh"}
           </button>
+          {mintInput.trim() && (
+            <button
+              type="button"
+              onClick={() =>
+                handleTogglePin(
+                  mintInput.trim(),
+                  result ? KNOWN_SYMBOLS[mintInput.trim()]?.symbol : undefined,
+                )
+              }
+              style={{
+                background: pinnedTokens.some(
+                  (p) => p.mint === mintInput.trim(),
+                )
+                  ? "#2b3a2f"
+                  : "transparent",
+                border: "1px solid #394b59",
+                color: pinnedTokens.some((p) => p.mint === mintInput.trim())
+                  ? "#f0c674"
+                  : "var(--muted)",
+                padding: "8px 12px",
+                borderRadius: "4px",
+                fontSize: "11px",
+                cursor: "pointer",
+              }}
+              title={
+                pinnedTokens.some((p) => p.mint === mintInput.trim())
+                  ? "Remove from pinned watchlist"
+                  : "Pin to my personal browser watchlist"
+              }
+            >
+              {pinnedTokens.some((p) => p.mint === mintInput.trim())
+                ? "★ Pinned"
+                : "☆ Pin token"}
+            </button>
+          )}
           {(result || mintInput) && (
             <button
               type="button"
@@ -373,6 +529,50 @@ export default function CandidateInspector({
 
       {result && (
         <>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              marginTop: "0.75rem",
+              padding: "6px 12px",
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid var(--line, #1f2d38)",
+              borderRadius: "4px",
+              flexWrap: "wrap",
+            }}
+          >
+            <span style={{ fontSize: "11px", color: "var(--muted)" }}>
+              Inspecting:
+            </span>
+            <code style={{ fontSize: "12px", color: "var(--foreground)" }}>
+              {result.mint}
+            </code>
+            {KNOWN_SYMBOLS[result.mint] && (
+              <span className="badge">
+                {KNOWN_SYMBOLS[result.mint].symbol}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                void navigator.clipboard.writeText(result.mint);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
+              style={{
+                background: "transparent",
+                border: "1px solid #394b59",
+                color: copied ? "#4ade80" : "var(--muted)",
+                padding: "2px 8px",
+                borderRadius: "4px",
+                fontSize: "10px",
+                cursor: "pointer",
+              }}
+            >
+              {copied ? "Copied!" : "Copy"}
+            </button>
+          </div>
           <div className="summary-grid" style={{ marginTop: "1rem" }}>
             <article className="summary">
               <span className="label">CANDIDATE STATE</span>
@@ -430,6 +630,57 @@ export default function CandidateInspector({
               </div>
               <p>
                 Provisional research only. Alerts disabled. No trade execution.
+              </p>
+            </article>
+
+            <article className="summary">
+              <span className="label">RESEARCH SCORES</span>
+              <div
+                style={{
+                  marginTop: "0.5rem",
+                  display: "flex",
+                  gap: "6px",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                }}
+              >
+                <span
+                  className={`badge ${
+                    result.candidate_state.pump_score &&
+                    Number(result.candidate_state.pump_score) >= 75
+                      ? "current"
+                      : ""
+                  }`}
+                  title="Pump research score (0-100)"
+                >
+                  Pump:{" "}
+                  {result.candidate_state.pump_score
+                    ? `${Number(result.candidate_state.pump_score).toFixed(0)}/100`
+                    : "None"}
+                </span>
+                <span
+                  className={`badge ${
+                    result.candidate_state.dump_score &&
+                    Number(result.candidate_state.dump_score) >= 75
+                      ? "negative"
+                      : ""
+                  }`}
+                  title="Dump warning score (0-100)"
+                >
+                  Dump:{" "}
+                  {result.candidate_state.dump_score
+                    ? `${Number(result.candidate_state.dump_score).toFixed(0)}/100`
+                    : "None"}
+                </span>
+              </div>
+              <p>
+                Warnings:{" "}
+                {Array.isArray(result.candidate_state.dump_warning_groups)
+                  ? result.candidate_state.dump_warning_groups.length
+                  : (result.candidate_state.dump_warning_groups ?? 0)}{" "}
+                groups
+                <br />
+                Provisional research weights · No live signals
               </p>
             </article>
           </div>
