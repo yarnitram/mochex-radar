@@ -23,9 +23,13 @@ type EvaluationResult = {
       };
       stage_liquidity: {
         status: string;
+        stage?: string;
         reason: string;
         dex_liquidity_usd?: string | null;
         sell_depth_2pct_usd?: string | null;
+        pool_id?: string | null;
+        dex_id?: string | null;
+        pool_created_at?: string | null;
         flags: string[];
       };
       holder_concentration: {
@@ -828,6 +832,65 @@ export default function CandidateInspector({
                         ? `$${Number(result.token_risk.checks.stage_liquidity.sell_depth_2pct_usd).toLocaleString()}`
                         : "missing"}
                     </span>
+                    {result.token_risk.checks.stage_liquidity.pool_id && (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          marginTop: "4px",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <span
+                          className="badge"
+                          style={{
+                            fontSize: "9px",
+                            padding: "1px 6px",
+                            textTransform: "uppercase",
+                            background: "#1c2b36",
+                            color: "#83a598",
+                            border: "1px solid #283e4e",
+                          }}
+                        >
+                          {result.token_risk.checks.stage_liquidity.dex_id
+                            ? result.token_risk.checks.stage_liquidity.dex_id.toUpperCase()
+                            : "DEX POOL"}
+                        </span>
+                        <code style={{ fontSize: "11px", color: "var(--foreground, #ebdbb2)" }}>
+                          {result.token_risk.checks.stage_liquidity.pool_id.slice(0, 4)}…{result.token_risk.checks.stage_liquidity.pool_id.slice(-4)}
+                        </code>
+                        <button
+                          type="button"
+                          className="badge"
+                          style={{ cursor: "pointer", fontSize: "9px", padding: "1px 5px" }}
+                          onClick={() => {
+                            if (result.token_risk.checks.stage_liquidity.pool_id) {
+                              void navigator.clipboard.writeText(result.token_risk.checks.stage_liquidity.pool_id);
+                            }
+                          }}
+                          title={`Copy pool address ${result.token_risk.checks.stage_liquidity.pool_id}`}
+                        >
+                          Copy
+                        </button>
+                        <a
+                          href={`https://dexscreener.com/solana/${result.token_risk.checks.stage_liquidity.pool_id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="badge"
+                          style={{
+                            fontSize: "9px",
+                            padding: "1px 6px",
+                            textDecoration: "none",
+                            color: "#8ec07c",
+                            border: "1px solid #3c5145",
+                          }}
+                          title="View pool on DexScreener"
+                        >
+                          DexScreener ↗
+                        </a>
+                      </div>
+                    )}
                     {result.token_risk.checks.stage_liquidity.flags.length >
                       0 && (
                       <small className="provenance">

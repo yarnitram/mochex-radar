@@ -33,6 +33,7 @@ class Pair(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     chainId: StrictStr
+    dexId: StrictStr | None = None
     pairAddress: StrictStr = Field(min_length=1)
     baseToken: Token
     marketCap: Decimal | None = None
@@ -94,6 +95,7 @@ class DexScreener:
                         market_cap_usd=pair.marketCap, fdv_usd=pair.fdv,
                         dex_liquidity_usd=pair.liquidity.usd if pair.liquidity else None,
                         source="dexscreener:token-pairs-v1", known_at=known_at,
+                        dex_id=pair.dexId,
                     )
                     if candidate.identity in identities:
                         raise ValueError("duplicate pool identity")

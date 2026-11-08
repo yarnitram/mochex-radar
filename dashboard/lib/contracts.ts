@@ -530,6 +530,9 @@ export const candidateEvaluationSchema = z
           reason: z.string(),
           dex_liquidity_usd: z.string().nullable().optional(),
           sell_depth_2pct_usd: z.string().nullable().optional(),
+          pool_id: z.string().nullable().optional(),
+          dex_id: z.string().nullable().optional(),
+          pool_created_at: z.string().nullable().optional(),
           flags: z.array(z.string()),
         }),
         holder_concentration: z.object({
