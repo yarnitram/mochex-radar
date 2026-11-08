@@ -12,14 +12,33 @@ export async function GET(request: Request) {
       { status: 400 },
     );
   }
+  const refresh = searchParams.get("refresh") === "true";
   const origin = process.env.RADAR_API_ORIGIN || "http://127.0.0.1:8000";
+  const authHeader: Record<string, string> = process.env.RADAR_API_TOKEN
+    ? { Authorization: `Bearer ${process.env.RADAR_API_TOKEN}` }
+    : {};
+
+  if (refresh) {
+    // Attempt best-effort on-demand authority and pool observation
+    await Promise.allSettled([
+      fetch(new URL(`/api/v1/security/solana/${mint}/authorities`, origin), {
+        headers: authHeader,
+        cache: "no-store",
+        signal: AbortSignal.timeout(4000),
+      }),
+      fetch(new URL(`/api/v1/dex/solana/${mint}/pools`, origin), {
+        headers: authHeader,
+        cache: "no-store",
+        signal: AbortSignal.timeout(4000),
+      }),
+    ]);
+  }
+
   try {
     const response = await fetch(
       new URL(`/api/v1/candidates/solana/${mint}/evaluation`, origin),
       {
-        headers: process.env.RADAR_API_TOKEN
-          ? { Authorization: `Bearer ${process.env.RADAR_API_TOKEN}` }
-          : {},
+        headers: authHeader,
         cache: "no-store",
         signal: AbortSignal.timeout(5000),
       },
